@@ -140,6 +140,7 @@ npm pack --dry-run          # inspect the published file list
 | `src/protocol.js` | Shared vocabulary: codes, methods, path handling, response parsing |
 | `src/locales.js` | `recentTasks` zh/en dictionaries (flat keys, 1:1 key sets) |
 | `assets/` | Screenshots used by this README (and picked up by the plugin market) |
+| `screenshots.json` | The screenshot list the plugin market reads (its convention: declared beside `package.json`, paths relative to the repo) |
 | `test/` | `protocol` · `host` · `client` · `bundle` |
 | `.agents/notes/` | The design notes this implementation follows, including where it deviates from the draft spec |
 

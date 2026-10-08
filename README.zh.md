@@ -140,6 +140,7 @@ npm pack --dry-run          # 查看将要发布的文件清单
 | `src/protocol.js` | 共享词表：错误码、方法、路径处理、响应解析 |
 | `src/locales.js` | `recentTasks` 中英文词典（扁平键，键集 1:1） |
 | `assets/` | 本 README 使用的效果图（插件市场也会抓取） |
+| `screenshots.json` | 插件市场读取的效果图清单（约定：放在 `package.json` 旁，路径相对于本仓库） |
 | `test/` | `protocol` · `host` · `client` · `bundle` |
 | `.agents/notes/` | 本次实现遵循的设计笔记，含与草稿 SPEC 的偏离说明 |
 
