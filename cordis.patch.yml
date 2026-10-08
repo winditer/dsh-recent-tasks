@@ -1,0 +1,44 @@
+# dsh-recent-tasks bundle patch: ONE row for a dual-face package.
+#
+# The row `name` is this package itself, so the host Loader imports its host half
+# (`exports["."]`) AND the web-modules scanner discovers its browser half through
+# the `dsh.client` declaration + `exports["./client"]` of the same package.json.
+# One row, both halves -- the shape used by dsh-image-gen / dsh-paste-spill.
+#
+# `config` here reaches ONLY the host half; a bundle client half is created with
+# `{ name: id }` and never receives row config, so the client half reads every
+# tunable over `/dsh-recent-tasks/api/*` instead.
+#
+# THE ROW ID IS ALSO THE SETTINGS NAMESPACE. `recentTasksDir`, `title`, `pinLast`
+# and `autoRepair` are declared `.volatile()` in the host Config, so the official
+# settings surface derives a form for this row automatically and writes edits
+# into the ACTIVE PROFILE's cordis.patch.yml (never into this file, and never
+# through a private config file). Those edits hot-apply: the loader commits them
+# into the running Volatile refs and emits `loader/volatile-update`, which the
+# host half listens to. `enabled` and `apiPrefix` are NOT volatile -- changing
+# either remounts the row.
+#
+# Every key below is optional; the values are the documented defaults.
+- insert:
+    - id: recent-tasks
+      name: dsh-recent-tasks
+      config:
+        # Where chats with no workspace are grouped. `~` is expanded against the
+        # DSH host user's home. Change it in Settings -> General ("最近任务") or in
+        # Settings -> Plugins; the new value lands in the profile patch layer.
+        recentTasksDir: "~/Documents/DSH 最近任务"
+        # Group name used when the workspace record is created. While the STORED
+        # title is still one of this plugin's own default names (最近任务 / Recent
+        # tasks) the client half keeps it in step with the UI language, because
+        # the sidebar row and the workspace switcher render the durable title
+        # verbatim. A sidebar rename -- or any other value here -- is treated as
+        # user intent and is never rewritten.
+        title: "最近任务"
+        # Keep the group at the end of the durable workspace order.
+        pinLast: true
+        # Recreate the workspace record if it was deleted from the sidebar.
+        autoRepair: true
+        # Master switch. Patch-only: no settings form is generated for it.
+        enabled: true
+        # Host API path; patch-only, and must be a single absolute segment.
+        apiPrefix: "/dsh-recent-tasks/api"

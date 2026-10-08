@@ -1,0 +1,16 @@
+# `dist/client.js` IS committed on purpose, even though `scripts/build.mjs`
+# regenerates it. A `github:winditer/dsh-recent-tasks` install never runs this
+# package's build: pnpm blocks lifecycle scripts by default. Shipping the built
+# bundle in the tree is what makes "install straight from GitHub" work — the
+# same reason dsh-temp-chat and dsh-elf commit theirs.
+
+# Dev-only dependency tree extracted from the shipped app.asar so `node --test`
+# can resolve `@deepseek-ai/schemastery` (production resolves it through DSH's
+# own profile interception). ~288 packages; never committed.
+.asar/
+node_modules/
+
+# Profile / editor noise.
+*.log
+.DS_Store
+cordis.patch.yml.bak-*
