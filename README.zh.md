@@ -62,13 +62,23 @@ Web profile 用 `--profile web`。重启 DSH（完全退出再打开），侧边
 
 **`dependencies` 那条不能省**——只写进 `dsh.profile.bundles` 的名字会被桌面端崩溃恢复流程抹掉（它按 `dependencies` 重新推导 bundle 列表）。
 
+### 从预构建 tarball 安装
+
+每个 Release 都会附带打包好的安装包，既不用下载整个仓库，使用端也不需要编译：
+
+```sh
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.1.0/dsh-recent-tasks-0.1.0.tgz
+```
+
+这个 URL 特意固定到 tag，而不是写成 `releases/latest/download/…`：`latest` 每次请求现算，但文件名是字面量——带版本号的文件名会在下一个 Release 改名的那一刻让那条 URL 失效。
+
 ### 从 npm 安装
 
 ```sh
 dsh plugin --profile desktop add dsh-recent-tasks
 ```
 
-> ⚠️ 本包已按 npm 规范准备好，但**尚未发布**——在发布之前请用上面的 `github:` 规格（插件市场读取的也是这个来源）。本 README 不声称任何已发布的版本号。
+> ⚠️ 本包已按 npm 规范准备好，但**尚未发布**——在发布之前请用上面的 `github:` 规格或 Release 里的 tarball（插件市场读取的也是这两个来源）。本 README 不声称任何已发布的版本号。
 
 ### 从源码安装（开发）
 

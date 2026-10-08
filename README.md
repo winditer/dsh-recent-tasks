@@ -62,13 +62,23 @@ The built browser half (`dist/client.js`) is **committed** on purpose. A `github
 
 **The `dependencies` entry is not optional** — a bundle listed only in `dsh.profile.bundles` is erased by the desktop crash-recovery path, which re-derives the list from `dependencies`.
 
+### From the prebuilt tarball
+
+Every release attaches the packed package, so the whole repository is not downloaded and nothing is compiled on the consuming side:
+
+```sh
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.1.0/dsh-recent-tasks-0.1.0.tgz
+```
+
+The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.
+
 ### From npm
 
 ```sh
 dsh plugin --profile desktop add dsh-recent-tasks
 ```
 
-> ⚠️ The package is prepared for npm but **not published yet** — until it is, use the `github:` spec above (which is also the source the plugin market reads). Nothing in this README claims a published version.
+> ⚠️ The package is prepared for npm but **not published yet** — until it is, use the `github:` spec or the release tarball above (the plugin market reads those too). Nothing in this README claims a published version.
 
 ### From source (development)
 
