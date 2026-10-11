@@ -3,6 +3,7 @@
 [English](README.md) | 中文
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/dsh-recent-tasks.svg)](https://www.npmjs.com/package/dsh-recent-tasks)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.19-339933.svg)](package.json)
 [![DSH](https://img.shields.io/badge/DSH-0.2.0--rc.1%2B-4D6BFE.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
@@ -44,9 +45,17 @@ DSH 按会话 `cwd` 归属的工作区给对话分组。不带工作区开出来
 
 > bundle 条目（`id: recent-tasks`）由本包自带的 `cordis.patch.yml` 自行声明，**不需要**手写补丁文件。
 
-### 从 GitHub 安装（推荐）
+### 从 npm 安装（推荐）
 
-按**仓库身份**安装，插件市场才能把这个包明确对应到 `winditer/dsh-recent-tasks`，卡片上才会显示正确的 GitHub 链接与描述：
+```sh
+dsh plugin --profile desktop add dsh-recent-tasks
+```
+
+已发布到 npm：[`dsh-recent-tasks`](https://www.npmjs.com/package/dsh-recent-tasks)。包里声明了 `repository`，插件市场因此能把它对应回本仓库并展示版本与下载量；安装走预构建包，完全跳过构建授权那一步。这是插件市场优先采用的安装方式。
+
+### 从 GitHub 安装
+
+按**仓库身份**安装，拿到 `main` 的最新提交——想试未发布改动时有用；在没有走 npm 的情况下，插件市场也是靠它把这个包对应到 `winditer/dsh-recent-tasks`：
 
 ```sh
 dsh plugin --profile desktop add github:winditer/dsh-recent-tasks
@@ -71,14 +80,6 @@ dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/re
 ```
 
 这个 URL 特意固定到 tag，而不是写成 `releases/latest/download/…`：`latest` 每次请求现算，但文件名是字面量——带版本号的文件名会在下一个 Release 改名的那一刻让那条 URL 失效。
-
-### 从 npm 安装
-
-```sh
-dsh plugin --profile desktop add dsh-recent-tasks
-```
-
-> ⚠️ 本包已按 npm 规范准备好，但**尚未发布**——在发布之前请用上面的 `github:` 规格或 Release 里的 tarball（插件市场读取的也是这两个来源）。本 README 不声称任何已发布的版本号。
 
 ### 从源码安装（开发）
 

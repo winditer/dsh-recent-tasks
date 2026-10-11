@@ -3,6 +3,7 @@
 English | [中文](README.zh.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/dsh-recent-tasks.svg)](https://www.npmjs.com/package/dsh-recent-tasks)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.19-339933.svg)](package.json)
 [![DSH](https://img.shields.io/badge/DSH-0.2.0--rc.1%2B-4D6BFE.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
@@ -44,9 +45,17 @@ The alternative — a plugin-drawn group — cannot work: the sidebar's groups *
 
 > The bundle entry (`id: recent-tasks`) is self-declared by this package's `cordis.patch.yml` — no manual patch file is needed.
 
-### From GitHub (recommended)
+### From npm (recommended)
 
-Install by **repository identity**, so the plugin market can match this package to `winditer/dsh-recent-tasks` unambiguously and show the right GitHub link and description:
+```sh
+dsh plugin --profile desktop add dsh-recent-tasks
+```
+
+Published on npm as [`dsh-recent-tasks`](https://www.npmjs.com/package/dsh-recent-tasks). The package declares its `repository`, so the plugin market matches it back to this repo and can offer version and download information; installs are prebuilt and skip the build-approval step entirely. This is the path the plugin market prefers.
+
+### From GitHub
+
+Install by **repository identity** to get the tip of `main` — useful for trying an unreleased change, and it is also how the plugin market resolves this package to `winditer/dsh-recent-tasks` when npm is not used:
 
 ```sh
 dsh plugin --profile desktop add github:winditer/dsh-recent-tasks
@@ -71,14 +80,6 @@ dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/re
 ```
 
 The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.
-
-### From npm
-
-```sh
-dsh plugin --profile desktop add dsh-recent-tasks
-```
-
-> ⚠️ The package is prepared for npm but **not published yet** — until it is, use the `github:` spec or the release tarball above (the plugin market reads those too). Nothing in this README claims a published version.
 
 ### From source (development)
 
