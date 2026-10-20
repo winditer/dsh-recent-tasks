@@ -14,3 +14,9 @@ node_modules/
 *.log
 .DS_Store
 cordis.patch.yml.bak-*
+
+# Local release artifacts: the tarball from `npm pack`, the scratch npm cache it
+# needs when `~/.npm` is not writable, and the unpacked copy used to check it.
+*.tgz
+.pack-check/
+.npm-cache/
