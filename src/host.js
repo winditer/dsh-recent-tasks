@@ -50,7 +50,6 @@ export const DEFAULTS = Object.freeze({
   enabled: true,
   recentTasksDir: '~/Documents/DSH 最近任务',
   title: '最近任务',
-  pinLast: true,
   autoRepair: true,
   apiPrefix: API_PREFIX,
 });
@@ -69,7 +68,6 @@ export const Config = z.object({
   enabled: z.boolean().default(DEFAULTS.enabled),
   recentTasksDir: z.string().default(DEFAULTS.recentTasksDir).volatile(),
   title: z.string().default(DEFAULTS.title).volatile(),
-  pinLast: z.boolean().default(DEFAULTS.pinLast).volatile(),
   autoRepair: z.boolean().default(DEFAULTS.autoRepair).volatile(),
   apiPrefix: z.string().default(DEFAULTS.apiPrefix),
 });
@@ -96,7 +94,6 @@ export function resolveLiveConfig(config, { home = homedir() } = {}) {
     enabled: readVolatile(source.enabled, DEFAULTS.enabled),
     recentTasksDir: readVolatile(source.recentTasksDir, DEFAULTS.recentTasksDir),
     title: readVolatile(source.title, DEFAULTS.title),
-    pinLast: readVolatile(source.pinLast, DEFAULTS.pinLast),
     autoRepair: readVolatile(source.autoRepair, DEFAULTS.autoRepair),
     apiPrefix: readVolatile(source.apiPrefix, DEFAULTS.apiPrefix),
   }, { home });
@@ -116,7 +113,6 @@ export function normalizeConfig(raw, { home = homedir() } = {}) {
     enabled: merged.enabled !== false,
     recentTasksDir: dir,
     title: typeof merged.title === 'string' && merged.title.trim() ? merged.title : DEFAULTS.title,
-    pinLast: merged.pinLast !== false,
     autoRepair: merged.autoRepair !== false,
     apiPrefix: typeof merged.apiPrefix === 'string' && merged.apiPrefix.startsWith('/')
       ? merged.apiPrefix
@@ -234,7 +230,6 @@ export function createRecentTasks({ registry, fs = {}, logger, config, random })
         workspaceId: record?.id ?? null,
         dirExists: await dirExists(path),
         createdAt: cache?.createdAt ?? record?.createdAt ?? null,
-        pinLast: current.pinLast,
         autoRepair: current.autoRepair,
         repaired: announcedRepair,
         reusedExisting: cache?.reusedExisting === true,
@@ -295,14 +290,11 @@ export function createRecentTasks({ registry, fs = {}, logger, config, random })
     }
     if (!record || !record.id) return fail(CODES.internal, 'workspace registry returned no record');
 
-    if (current.pinLast) {
-      try {
-        await registry.insertBefore(record.id);
-      } catch (error) {
-        // A failed reorder must not fail the whole ensure: the group exists.
-        logger?.warn?.(`dsh-recent-tasks: cannot move the group to the end: ${String(error)}`);
-      }
-    }
+    // No reorder here. The group is appended by `create()` and that is all this
+    // plugin guarantees: a former "always keep it at the end" switch only ever
+    // ran inside `ensure`, so toggling it changed nothing a user could see
+    // (state polling never reordered), and it was removed as dead weight. A group
+    // the user drags elsewhere now simply stays where it was dropped.
 
     // An id that changed (delete + recreate) means the old sessions stayed
     // behind under "未分组" — surface that exactly once.

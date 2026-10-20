@@ -120,16 +120,14 @@ test('normalizeConfig applies defaults and expands a leading tilde', () => {
   const { config, problem } = normalizeConfig(undefined, { home: HOME });
   assert.equal(problem, '');
   assert.equal(config.enabled, true);
-  assert.equal(config.pinLast, true);
   assert.equal(config.autoRepair, true);
   assert.equal(config.title, DEFAULTS.title);
   assert.equal(config.recentTasksDir, DEFAULTS.recentTasksDir.replace('~', HOME));
 
-  const custom = normalizeConfig({ recentTasksDir: '~/Recents', title: '   ', pinLast: false }, { home: HOME });
+  const custom = normalizeConfig({ recentTasksDir: '~/Recents', title: '   ' }, { home: HOME });
   assert.equal(custom.problem, '');
   assert.equal(custom.config.recentTasksDir, `${HOME}/Recents`);
   assert.equal(custom.config.title, DEFAULTS.title, 'blank title falls back');
-  assert.equal(custom.config.pinLast, false);
 });
 
 test('normalizeConfig refuses a relative or empty directory (never resolves cwd)', () => {
@@ -160,7 +158,7 @@ test('isUnder is strict and separator aware', () => {
 // ensure / state
 // --------------------------------------------------------------------------
 
-test('ensure creates the directory, registers the record and pins it last', async () => {
+test('ensure creates the directory and registers the record, without reordering', async () => {
   const { service, registry } = makeService({ config: { recentTasksDir: '~/Recents' } });
   const result = await service.ensure();
   assert.equal(result.ok, true);
@@ -172,19 +170,16 @@ test('ensure creates the directory, registers the record and pins it last', asyn
   assert.equal(result.value.dirExists, true);
   assert.equal(registry.calls.mkdir, 1);
   assert.equal(registry.calls.create, 1);
-  assert.equal(registry.calls.insertBefore, 1, 'pinLast moves the group to the end');
+  // The group's place is whatever `create()` appended. This plugin never writes
+  // workspace order: the former "always keep it at the end" reorder is gone.
+  assert.equal(registry.calls.insertBefore, 0, 'the plugin must not reorder workspaces');
+  assert.equal('pinLast' in result.value, false, 'the state payload has no pinLast');
 
   const again = await service.ensure();
   assert.equal(again.value.workspaceId, 'w1', 'ensure is idempotent');
   assert.equal(again.value.reusedExisting, true);
   assert.equal(registry.calls.create, 1, 'no duplicate record');
-  assert.equal(registry.calls.insertBefore, 2, 'still pinned last');
-});
-
-test('ensure skips the reorder when pinLast is off', async () => {
-  const { service, registry } = makeService({ config: { pinLast: false } });
-  await service.ensure();
-  assert.equal(registry.calls.insertBefore, 0);
+  assert.equal(registry.calls.insertBefore, 0, 'still no reorder');
 });
 
 test('ensure reports coded failures instead of throwing', async () => {

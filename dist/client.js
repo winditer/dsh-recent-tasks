@@ -57,7 +57,6 @@ var zh = {
   "settings.dir": "\u5B58\u653E\u76EE\u5F55",
   "settings.dir.change": "\u66F4\u6539\u2026",
   "settings.title.field": "\u5206\u7EC4\u540D\u79F0\uFF08\u4EC5\u5F71\u54CD\u65B0\u5206\u7EC4\uFF09",
-  "settings.pinLast": "\u59CB\u7EC8\u7F6E\u4E8E\u5DE5\u4F5C\u533A\u5217\u8868\u672B\u5C3E",
   "settings.autoRepair": "\u5206\u7EC4\u88AB\u5220\u9664\u540E\u81EA\u52A8\u91CD\u5EFA",
   "settings.saved": "\u6700\u8FD1\u4EFB\u52A1\u8BBE\u7F6E\u5DF2\u4FDD\u5B58",
   "settings.saveFailed": "\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
@@ -96,7 +95,6 @@ var en = {
   "settings.dir": "Storage folder",
   "settings.dir.change": "Change\u2026",
   "settings.title.field": "Group name (new groups only)",
-  "settings.pinLast": "Always keep at the end of the workspace list",
   "settings.autoRepair": "Recreate the group if it is deleted",
   "settings.saved": "Recent-tasks settings saved",
   "settings.saveFailed": "Could not save: {0}",
@@ -176,7 +174,6 @@ function validateStateValue(value) {
     workspaceId,
     dirExists: value.dirExists === true,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : null,
-    pinLast: value.pinLast !== false,
     autoRepair: value.autoRepair !== false,
     repaired: value.repaired === true,
     reusedExisting: value.reusedExisting === true,
@@ -971,21 +968,6 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
           }
         }
       )
-    }
-  ), /* @__PURE__ */ import_react.default.createElement(
-    SettingsRow,
-    {
-      title: t("settings.pinLast"),
-      control: /* @__PURE__ */ import_react.default.createElement("label", { className: "dsh-recent-tasks-switch" }, /* @__PURE__ */ import_react.default.createElement(
-        "input",
-        {
-          type: "checkbox",
-          role: "switch",
-          checked: live?.pinLast !== false,
-          disabled: !editable || pending,
-          onChange: (event) => save("pinLast", event.target.checked)
-        }
-      ))
     }
   ), /* @__PURE__ */ import_react.default.createElement(
     SettingsRow,

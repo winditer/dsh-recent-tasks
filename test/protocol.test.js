@@ -117,7 +117,6 @@ test('validateStateValue rejects unusable payloads and normalizes the rest', () 
     workspaceId: 'w1',
     dirExists: true,
     createdAt: '2026-01-01T00:00:00.000Z',
-    pinLast: false,
     autoRepair: false,
     repaired: true,
     reusedExisting: true,
@@ -131,7 +130,6 @@ test('validateStateValue rejects unusable payloads and normalizes the rest', () 
     workspaceId: 'w1',
     dirExists: true,
     createdAt: '2026-01-01T00:00:00.000Z',
-    pinLast: false,
     autoRepair: false,
     repaired: true,
     reusedExisting: true,
@@ -143,7 +141,6 @@ test('validateStateValue rejects unusable payloads and normalizes the rest', () 
   assert.equal(bare.workspaceId, null);
   assert.equal(bare.title, null);
   assert.equal(bare.enabled, true);
-  assert.equal(bare.pinLast, true);
   assert.equal(bare.autoRepair, true);
   assert.equal(bare.repaired, false);
   assert.equal(bare.reusedExisting, false);

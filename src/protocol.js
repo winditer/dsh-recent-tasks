@@ -118,7 +118,6 @@ export function validateStateValue(value) {
     workspaceId,
     dirExists: value.dirExists === true,
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : null,
-    pinLast: value.pinLast !== false,
     autoRepair: value.autoRepair !== false,
     repaired: value.repaired === true,
     reusedExisting: value.reusedExisting === true,

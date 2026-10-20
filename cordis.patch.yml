@@ -9,8 +9,8 @@
 # `{ name: id }` and never receives row config, so the client half reads every
 # tunable over `/dsh-recent-tasks/api/*` instead.
 #
-# THE ROW ID IS ALSO THE SETTINGS NAMESPACE. `recentTasksDir`, `title`, `pinLast`
-# and `autoRepair` are declared `.volatile()` in the host Config, so the official
+# THE ROW ID IS ALSO THE SETTINGS NAMESPACE. `recentTasksDir`, `title` and
+# `autoRepair` are declared `.volatile()` in the host Config, so the official
 # settings surface derives a form for this row automatically and writes edits
 # into the ACTIVE PROFILE's cordis.patch.yml (never into this file, and never
 # through a private config file). Those edits hot-apply: the loader commits them
@@ -34,8 +34,6 @@
         # verbatim. A sidebar rename -- or any other value here -- is treated as
         # user intent and is never rewritten.
         title: "最近任务"
-        # Keep the group at the end of the durable workspace order.
-        pinLast: true
         # Recreate the workspace record if it was deleted from the sidebar.
         autoRepair: true
         # Master switch. Patch-only: no settings form is generated for it.

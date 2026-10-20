@@ -43,7 +43,6 @@ function snapshot(overrides = {}) {
       workspaceId: GROUP,
       dirExists: true,
       createdAt: '2026-09-29T00:00:00.000Z',
-      pinLast: true,
       autoRepair: true,
       repaired: false,
       reusedExisting: false,

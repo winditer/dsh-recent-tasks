@@ -372,21 +372,6 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
       />
 
       <SettingsRow
-        title={t('settings.pinLast')}
-        control={
-          <label className="dsh-recent-tasks-switch">
-            <input
-              type="checkbox"
-              role="switch"
-              checked={live?.pinLast !== false}
-              disabled={!editable || pending}
-              onChange={(event) => save('pinLast', event.target.checked)}
-            />
-          </label>
-        }
-      />
-
-      <SettingsRow
         title={t('settings.autoRepair')}
         control={
           <label className="dsh-recent-tasks-switch">

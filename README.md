@@ -104,13 +104,12 @@ dsh plugin --profile desktop add .
 
 ## Settings
 
-All four live rows are ordinary official settings: they appear both in **Settings → General** (rendered by this plugin's own row) and in **Settings → Plugins** (auto-derived from the plugin's `Config`), and both surfaces write the same document.
+All three live rows are ordinary official settings: they appear both in **Settings → General** (rendered by this plugin's own row) and in **Settings → Plugins** (auto-derived from the plugin's `Config`), and both surfaces write the same document.
 
 | Key | Default | Meaning |
 |---|---|---|
 | `recentTasksDir` | `~/Documents/DSH 最近任务` | Folder the group owns. Created on first use; must stay an absolute path. Changing it registers/uses the record for the new folder immediately. |
 | `title` | `最近任务` | Group name used when a record is created. While the stored title is still one of this plugin's own default names (`最近任务` / `Recent tasks`) it follows the UI language; any other title is yours and is never rewritten. |
-| `pinLast` | `true` | Re-assert the group's place at the end of the workspace list. |
 | `autoRepair` | `true` | Recreate the record if it was deleted from the sidebar. Switching it off turns deletion into a visible error instead of a silent rebuild. |
 | `enabled` | `true` | Master switch (patch only — no form). |
 | `apiPrefix` | `/dsh-recent-tasks/api` | Host API path (patch only). |

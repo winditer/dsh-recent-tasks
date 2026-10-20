@@ -144,9 +144,9 @@ test fail): the `stopped` early return, the `role="group"` skip, the recursive
 header check, the `aria-expanded` guard, the ancestry climb, and the two
 `nth-child` declarations.
 
-What no test can establish here: the real geometry, whether `pinLast` keeps the
-group last, drag/hover behaviour while collapsed, and the cost of one O(sidebar)
-read per frame during a streaming response. Those stay on the acceptance list.
+What no test can establish here: the real geometry, drag/hover behaviour while
+collapsed, and the cost of one O(sidebar) read per frame during a streaming
+response. Those stay on the acceptance list.
 
 ## 8. Accepted trade-offs (owner's call, not oversights)
 
