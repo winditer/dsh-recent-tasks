@@ -170,7 +170,9 @@ response. Those stay on the acceptance list.
 
 ## 8. Accepted trade-offs (owner's call, not oversights)
 
-No divider line (a 12px gap only); the 12px indent step is hard-coded; the toggle
+No divider line — the block keeps the list's own 4px rhythm, the same 4px the panel
+rows above use (the first cut added a 12px break on top of it, and the owner asked
+for the panel spacing); the 12px indent step is hard-coded; the toggle
 is always visible; the block scrolls with the workspace list; while the other
 groups are collapsed a chat's highlight inside them is invisible until expanded;
 and one frame can show the groups again while React replaces the container before

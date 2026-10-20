@@ -119,7 +119,11 @@ const CSS = `
    official competitor is the two-class
    groupSection+groupSection{margin-top:4px} (0,2,0): a tie there would be
    settled by stylesheet order, and (0,3,0) settles it.
-   The indent steps are 12px, the official tree step (spec §9-2).
+   The indent steps are 12px, the official tree step (spec §9-2). The block's own
+   margin-top is 0, not the 12px break of the first cut: the tree list already
+   separates its children by 4px — the same 4px the panel list above uses — so
+   anything more reads as a wider gap between the section and its block than
+   between 自动化任务 / 插件市场 / 插件.
 
    ---- Alignment (owner request 2026-10-20) --------------------------------
    The global panel rows above this section (自动化任务 / 插件市场 / 插件) are
@@ -148,7 +152,7 @@ const CSS = `
 [data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:10px;gap:8px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}
-[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
+[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:0}
 [data-row-key^="workspace:"][data-row-key^="workspace:"]:not([data-dsh-rt-row]){padding-inline-start:calc(34px + var(--dsh-workspace-indent,0px))}
 [data-row-key^="session:"][data-row-key^="session:"]:not([data-dsh-rt-sub]){padding-inline-start:calc(36px + var(--dsh-workspace-indent,0px))}
 [data-row-key^="overflow:"][data-row-key^="overflow:"]:not([data-dsh-rt-overflow]){padding-left:calc(56px + var(--dsh-workspace-indent,0px))}
