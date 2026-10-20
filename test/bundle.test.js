@@ -457,14 +457,18 @@ test('the artifact styles the promoted section without naming an official class'
     '[data-dsh-rt-row][data-dsh-rt-row]',
     '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1)',
     '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2)',
-    '[data-dsh-rt-block][data-dsh-rt-block]',
+    '[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]',
     '[data-dsh-rt-sub][data-dsh-rt-sub]',
     '[data-dsh-rt-overflow][data-dsh-rt-overflow]',
     'dsh-recent-tasks-workspaces-collapsed',
     'dsh-recent-tasks-collapse',
     'calc(8px + 12px + var(--dsh-workspace-indent,0px))',
     'calc(28px + 12px + var(--dsh-workspace-indent,0px))',
-    ':has([data-dsh-rt-block])',
+    // The hide rule is only safe with BOTH halves: the `:has()` gate keeps it
+    // from hiding the whole list, and the `>div:not(...)` part keeps it from
+    // hiding the promoted block itself. Asserting the substring `:has(...)`
+    // alone would let a rule that hides everything pass.
+    'html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}',
   ]) {
     assert.equal(bundle.includes(rule), true, `the artifact is missing ${rule}`);
   }

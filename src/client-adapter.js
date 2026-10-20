@@ -55,6 +55,9 @@ export function createSectionAdapter({
   let scheduled = null;
   let unsubscribe = null;
   let button = null;
+  let stopped = false;
+  /** The last row we resolved, reused while it is still in the document. */
+  let lastRow = null;
   /** Exactly what this adapter put on official nodes (node -> name -> value). */
   let tagged = new Map();
 
@@ -93,6 +96,14 @@ export function createSectionAdapter({
     return false;
   }
 
+  function hasWorkspaceRow(node) {
+    for (const child of childrenOf(node)) {
+      if (keyOf(child).startsWith('workspace:')) return true;
+      if (hasWorkspaceRow(child)) return true;
+    }
+    return false;
+  }
+
   /** The one document-wide selector this module is allowed (spec §5.3). */
   function findRow(workspaceId) {
     try {
@@ -105,24 +116,34 @@ export function createSectionAdapter({
   /** What the DOM currently offers, in the shape `shouldPromoteSection` reads. */
   function witness(workspaceId) {
     const missing = { rowFound: false, indent: '', listFound: false, headerFound: false };
-    const row = findRow(workspaceId);
+    // Steady state: the same node is still in the document, so skip the
+    // document-wide query (an attribute selector scans the whole tree, and this
+    // runs up to once per frame while a chat streams). A detached node is never
+    // reused, so a React re-render still forces a fresh lookup.
+    let row = lastRow;
+    if (!row || row.isConnected === false || keyOf(row) !== `workspace:${workspaceId}`) {
+      row = findRow(workspaceId);
+      lastRow = row;
+    }
     if (!row || roleOf(row) !== 'treeitem') return missing;
 
-    // The official row is [folder, chevron, title, actions]. Anything else is a
-    // shape we do not understand, and guessing would restyle the wrong node.
+    // The official row is [folder, chevron, title, actions] and only a group row
+    // carries `aria-expanded`. Anything else is a shape we do not understand,
+    // and guessing would restyle the wrong node.
     const cells = childrenOf(row);
+    if (attr(row, 'aria-expanded') === null) return missing;
     if (cells.length < 3 || !hasSvg(cells[0]) || !hasSvg(cells[1])) return missing;
 
-    const block = row.parentElement ?? null;
-    const list = ancestorWithRole(block, 'tree');
-    if (!block || !list || block.parentElement !== list) return missing;
-    if (
-      !childrenOf(list).some((group) =>
-        childrenOf(group).some((child) => keyOf(child).startsWith('workspace:')),
-      )
-    ) {
-      return missing;
-    }
+    // The row is NOT necessarily a DIRECT child of the group container: the
+    // official UI wraps every row in a HoverCard <span> (ui-workspace:2043, and
+    // the primitive renders `jsxs("span", { className: "_root_38jqx_3" })`), and
+    // a later release may nest it deeper still. So walk up to the container that
+    // IS a direct child of the list instead of trusting a fixed number of levels.
+    const list = ancestorWithRole(row, 'tree');
+    let block = row.parentElement ?? null;
+    while (block && block.parentElement !== list) block = block.parentElement;
+    if (!block || block.parentElement !== list) return missing;
+    if (!childrenOf(list).some((group) => hasWorkspaceRow(group))) return missing;
 
     // list -> treeBody -> listArea -> the ui-workspace root, whose only sibling
     // beside the list is the section header.
@@ -219,6 +240,17 @@ export function createSectionAdapter({
     // Our own markup: a plugin bundle cannot reach the official icon package.
     node.innerHTML = CHEVRON_SVG;
     node.setAttribute('type', 'button');
+    return activate(node);
+  }
+
+  /**
+   * Bind the toggle exactly once. A node we did not create (a reused one from a
+   * second adapter instance, or a stray) must still work, and must not end up
+   * with two listeners. The marker is a plain JS property, so React never sees
+   * it and no attribute — hence no style — changes.
+   */
+  function activate(node) {
+    if (node.__dshRtToggle === true) return node;
     node.addEventListener('click', (event) => {
       try {
         event.preventDefault?.();
@@ -229,6 +261,11 @@ export function createSectionAdapter({
         logger.warn('the workspaces collapse toggle failed:', error);
       }
     });
+    try {
+      node.__dshRtToggle = true;
+    } catch {
+      /* a frozen node still got the listener */
+    }
     return node;
   }
 
@@ -242,6 +279,7 @@ export function createSectionAdapter({
       if (typeof header.prepend === 'function') header.prepend(node);
       else header.insertBefore?.(node, header.firstChild ?? null);
     }
+    activate(node);
     const label = t(collapsed ? 'expand.workspaces' : 'collapse.workspaces');
     for (const [name, value] of [
       ['aria-expanded', collapsed ? 'false' : 'true'],
@@ -260,11 +298,19 @@ export function createSectionAdapter({
     desired.set(row, new Map([[ADAPTER.rowAttr, ADAPTER.rowValue]]));
     desired.set(block, new Map([[ADAPTER.blockAttr, ADAPTER.rowValue]]));
     desired.set(list, new Map([[ADAPTER.listAttr, '']]));
-    for (const child of childrenOf(block)) {
-      const key = keyOf(child);
-      if (key.startsWith('session:')) desired.set(child, new Map([[ADAPTER.subAttr, '']]));
-      else if (key.startsWith('overflow:')) desired.set(child, new Map([[ADAPTER.overflowAttr, '']]));
-    }
+    // Session rows and the "expand the rest" button sit at whatever depth the
+    // official UI chooses (each session row is wrapped in its own HoverCard
+    // <span>, ui-workspace:2272), so look for `data-row-key` anywhere inside the
+    // block. Nested child workspaces are left alone: their keys say `workspace:`.
+    const walk = (node) => {
+      for (const child of childrenOf(node)) {
+        const key = keyOf(child);
+        if (key.startsWith('session:')) desired.set(child, new Map([[ADAPTER.subAttr, '']]));
+        else if (key.startsWith('overflow:')) desired.set(child, new Map([[ADAPTER.overflowAttr, '']]));
+        walk(child);
+      }
+    };
+    walk(block);
     return desired;
   }
 
@@ -300,6 +346,7 @@ export function createSectionAdapter({
   }
 
   function run() {
+    if (stopped) return;
     scheduled = null;
     try {
       const snapshot = controller.store.getSnapshot();
@@ -323,15 +370,22 @@ export function createSectionAdapter({
   }
 
   function schedule() {
-    if (scheduled !== null) return;
+    if (stopped || scheduled !== null) return;
     try {
-      scheduled = raf.set(() => run());
+      // `raf.set` legitimately returns undefined when the harness has neither
+      // rAF nor setTimeout; storing that would leave the sentinel non-null
+      // forever and silently swallow every later pass.
+      scheduled = raf.set(() => run()) ?? true;
     } catch {
       scheduled = null;
     }
   }
 
   function stop() {
+    // A frame may already be queued (and rAF cannot always be cancelled), so the
+    // flag — not the cancelled id — is what keeps a torn-down adapter from
+    // writing to the DOM again.
+    stopped = true;
     if (scheduled !== null) {
       try {
         raf.clear(scheduled);
@@ -340,6 +394,7 @@ export function createSectionAdapter({
       }
       scheduled = null;
     }
+    lastRow = null;
     try {
       unsubscribe?.();
     } catch {
@@ -356,6 +411,7 @@ export function createSectionAdapter({
   }
 
   function start() {
+    stopped = false;
     watch();
     run();
     try {

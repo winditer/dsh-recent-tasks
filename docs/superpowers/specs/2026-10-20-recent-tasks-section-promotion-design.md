@@ -62,6 +62,17 @@
 
 ⇒ 「提升成区块头」需要的四件事（折叠、箭头、标题、块级操作）官方行**全都有**；我们只做"换装"，不重绘。
 
+**⚠️ 实现期修正（0.2.1-rc.2 的 JSX 与 primitives 已复核）——行的父节点不是分组容器。**
+`ui-workspace:2043` 把分组行交给 `HoverCard` 包裹：`if (row.createdAt === void 0) return ownRow; return jsx(HoverCard, { anchor: ownRow, … })`；真工作区的 `createdAt` 来自 `:1041 buildGroup(…, Date.parse(workspace.createdAt), …)`，而 `Date.parse(undefined) === NaN !== undefined`，所以**真工作区永远被包裹**（只有「未分组」伪分组 `:1044 buildGroup("", void 0, …)` 不包裹）。`HoverCard`（`@deepseek-ai/dsh-client-ui-primitives` 的 `$_`）返回 `jsxs("span", { className: cn(Gn.root, …) })`，`Gn.root = _root_38jqx_3`（`position:relative;display:block`）。`ui-workspace:2272` 同理包裹**会话行**。真实结构：
+
+```
+div.groupSection[style="--dsh-workspace-indent:0px"]
+└── span._root_38jqx_3              ← HoverCard（不是我们认识的节点）
+    └── div.projectRow[data-row-key="workspace:<id>"]
+```
+
+⇒ 三条实现约束：① 分组容器必须**沿父链上溯到"list 的直接子元素"**，不能假定 `row.parentElement` 就是它（否则整个功能真机静默失效）；② 会话行与「展开其余 N 个」按钮的深度不固定，打标签必须**递归**找 `data-row-key`；③「容器里至少含一行 `workspace:` 行」的校验也要递归。§5.2 / §5.3 已按此更正。
+
 ### 3.3 缩进由官方变量给出，且分组容器的内联值标明了层级
 
 `ui-workspace:1741`（rows 模块 CSS）：`.projectRow,.sessionRow { padding-inline-start: calc(8px + var(--dsh-workspace-indent,0px)) }`。
@@ -151,9 +162,9 @@
 
 ```
 row        = [data-row-key="workspace:<id>"][role="treeitem"]
-block      = row.parentElement                       // 分组容器
 list       = row.closest('[role="tree"]')            // 滚动容器（官方稳定属性；§3.5）
-             └ 校验：list === block.parentElement
+block      = 从 row.parentElement 沿父链上溯，直到 parentElement === list
+             └ 校验：block.parentElement === list      // 中间隔着 HoverCard 的 <span>（§3.2）
 treeBody   = list.parentElement                      // 落点指示线/渐隐所在
 listArea   = treeBody.parentElement                  // margin/padding 那层
 root       = listArea.parentElement                  // ui-workspace 根
@@ -161,9 +172,9 @@ header     = root.firstElementChild                  // 唯一兄弟：区块标
 ```
 
 校验（全部通过才启用）：
-1. `list` 至少有一个直接子元素含 `> [data-row-key^="workspace:"]`；
-2. `listArea` 内不再含更外层的分组（防止把 `block` 认成 `list`）；
-3. `header !== listArea`、`header` 内 `querySelector('[data-row-key]') === null`。
+1. `list` 至少含一条 `[data-row-key^="workspace:"]` 行（**递归**找：行在 HoverCard 的 `<span>` 里，§3.2）；
+2. 行形状像官方分组行：有 `aria-expanded`、直接子元素 ≥3 且第 1、2 个含 `<svg>`；
+3. `header !== listArea`、`header` 内递归找 `[data-row-key]` 为 `null`。
 
 任一条不成立 ⇒ 按 §5.1 停用。
 
@@ -176,16 +187,16 @@ header     = root.firstElementChild                  // 唯一兄弟：区块标
 | 分组行（块标题行） | `data-dsh-rt-row="recent"` |
 | 分组容器 | `data-dsh-rt-block="recent"` |
 | 滚动容器（`role="tree"`） | `data-dsh-rt-list` |
-| 块内的会话行 | `data-dsh-rt-sub` |
+| 块内的会话行（HoverCard 里，递归找） | `data-dsh-rt-sub` |
 | 块内的「展开其余 N 个会话」按钮 | `data-dsh-rt-overflow` |
 
-CSS（写进现有插件样式表；**每条选择器重复一次标签属性**，用 0,2,0 特异性压过官方 0,1,0 的模块规则，从而不依赖样式注入顺序、也不需要用 `!important`）：
+CSS（写进现有插件样式表；**每条选择器重复标签属性**抬高特异性，压过官方模块规则，从而不依赖样式注入顺序、也不需要用 `!important`。注意 `[data-dsh-rt-block]` 要重复**两次**：官方竞争规则是双类 `groupSection+groupSection{margin-top:4px}`（0,2,0），只重复一次是平局、由文档顺序决定）：
 
 ```css
 [data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;color:var(--dsw-alias-label-tertiary);height:36px}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}          /* 文件夹图标 */
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}   /* 箭头常显 */
-[data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}                     /* 块间距 */
+[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}  /* 块间距 */
 [data-dsh-rt-sub][data-dsh-rt-sub]{
   padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}
 [data-dsh-rt-overflow][data-dsh-rt-overflow]{
@@ -197,7 +208,7 @@ CSS（写进现有插件样式表；**每条选择器重复一次标签属性**�
 - 左基线对齐：官方标题行 `padding-left:4px` + 我们注入的按钮（18px 盒 + 官方 `gap:4px`）⇒ 标题文字在 26px；分组行 `padding-inline-start:4px` + 官方 `gap:6px` + 官方箭头 `span.slot` 16px ⇒ 文字同样在 26px。
 - 会话行用 `data-dsh-rt-sub` 而不是 `[data-row-key^="session:"]`，因为退出动画的克隆被官方剥掉了 `data-row-key`（§3.5）；「展开其余 N 个」按钮单独一条规则，保留官方 28px 基线再加一档。
 - 两个 `--dsh-workspace-indent` 都原样保留，树模式叠加语义不变（本适配器只在根层启用，见 §5.1）。
-- 结构选择器 `> span:nth-child(1|2)` 是**结构性**的，不含 class；实现时额外做一次运行时校验（行有 ≥3 个直接子元素，且第 1、2 个子元素都含 `<svg>`），校验失败按 §5.1 停用。
+- 结构选择器 `> span:nth-child(1|2)` 是**结构性**的，不含 class；实现时额外做一次运行时校验（行带 `aria-expanded`、直接子元素 ≥3 且第 1、2 个子元素都含 `<svg>`），校验失败按 §5.1 停用。
 - 实现约束（可测性）：适配器**全文档只用一个选择器**（`doc.querySelector('[data-row-key="workspace:<id>"]')`），其余全部走 `children` / `parentElement` / `getAttribute` 属性访问；打标签时记住自己打了哪些节点，取消时只从这份名单里摘除——因此它永远不会扫到、也不会改到与本次提升无关的官方节点，同时可以用一个几十行的假 DOM 直接单测（§7.1）。
 - 是否在块间距之上再加一条分隔细线：见 §9 待确认。
 
@@ -207,7 +218,7 @@ CSS（写进现有插件样式表；**每条选择器重复一次标签属性**�
 - `aria-label` 来自插件自己的命名空间：`collapse.workspaces`（收起工作区列表）/ `expand.workspaces`（展开工作区列表），zh 为键集真源，en 1:1 镜像（既有单测断言两个键集相同）。
 - 交互：`click` → `stopPropagation()` → 读状态取反 → 写 localStorage → 应用（§5.5）→ 更新 `aria-expanded`。原生 `<button>` 自带 Enter/Space 支持。
 - 幂等：`ensureButton(header)` 先清掉 `header` 下所有 `.dsh-recent-tasks-collapse` 再按需插入一个（避免官方重建后遗留多个）。
-- 状态键：`dsh-recent-tasks:workspaces-collapsed`，值 `'1'` / 缺失即展开（与 `GUIDE_KEY` 的读写风格一致，容错解析非法值 ⇒ 展开）。
+- 状态键：`dsh.recent-tasks.workspaces-collapsed.v1`（与 `GUIDE_KEY` 的 `dsh.recent-tasks.*` 风格一致），值 `'1'` / `'0'` / 缺失即展开（容错解析非法值 ⇒ 展开）。
 
 ### 5.5 折叠的生效方式
 

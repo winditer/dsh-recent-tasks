@@ -41,7 +41,7 @@ The alternative — a plugin-drawn group — cannot work: the sidebar's groups *
 - This is presentation only: the group is still one real workspace record pinned last — no official code is patched and no workspace data is rewritten.
 - It keys on official *stable* attributes (`data-row-key`, `role`, the inline `--dsh-workspace-indent`) and never on official class names, which are build hashes that change between releases. If a DSH update moves those anchors the promotion **disables itself**: the sidebar falls back to the stock look with nothing left behind, one line in the console.
 - It also stands down for the flat list, while searching, in the 56px rail, and in tree mode when the folder is nested under another workspace (then it is not a peer). Switching back re-applies it immediately.
-- Known trade-offs: the block scrolls with the workspace list, and while "Workspaces" is collapsed the highlight of a chat inside a hidden group is not visible until you expand it again.
+- Known trade-offs: the block scrolls with the workspace list; while "Workspaces" is collapsed the highlight of a chat inside a hidden group is not visible until you expand it again; and on the single frame in which the official UI re-renders the container (before our replay runs) a collapsed group can flash back into view.
 - The collapse flag lives in your own browser storage (`dsh.recent-tasks.workspaces-collapsed.v1`); it is never reported anywhere.
 
 ## Requirements

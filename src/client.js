@@ -115,7 +115,10 @@ const CSS = `
    official class names: those are build hashes that already changed once. Each
    selector repeats its attribute so the plugin rule (0,2,0) outranks the
    official module rule (0,1,0) whatever the injection order — by specificity,
-   never by an override flag.
+   never by an override flag. The block rule repeats it twice because its
+   official competitor is the two-class
+   groupSection+groupSection{margin-top:4px} (0,2,0): a tie there would be
+   settled by stylesheet order, and (0,3,0) settles it.
    The indent steps are 12px, the official tree step (spec §9-2). */
 .dsh-recent-tasks-collapse{display:inline-flex;flex:none;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary,#8f959e);cursor:pointer}
 .dsh-recent-tasks-collapse:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
@@ -126,7 +129,7 @@ const CSS = `
 [data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}
-[data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
+[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
 [data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}
 [data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}
 html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}

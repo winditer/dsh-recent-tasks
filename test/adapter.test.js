@@ -6,6 +6,15 @@
 // `children` / `parentElement` / `getAttribute`; this fake therefore implements
 // that one selector shape instead of a CSS engine. A fake that mirrored a real
 // engine would only prove the fake works.
+//
+// Faithfulness that matters (spec §3.2): the official UI wraps EVERY row in a
+// HoverCard `<span>` (ui-workspace:2043 and :2272 render
+// `jsx(HoverCard, { anchor: <row> })`, and the primitive returns
+// `jsxs("span", { className: "_root_38jqx_3", … })`). So the group row is NOT a
+// direct child of the group container, and session rows are NOT direct children
+// either. A fake that hangs them directly off the container lets an adapter that
+// only walks direct children look correct — which is exactly the bug this file
+// now pins down.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -66,6 +75,13 @@ class FakeNode {
 
   get firstChild() {
     return this.children[0] ?? null;
+  }
+
+  /** What the adapter uses to skip its document-wide query on a quiet sidebar. */
+  get isConnected() {
+    let node = this;
+    while (node.parentElement) node = node.parentElement;
+    return node.tagName === '#DOCUMENT';
   }
 
   appendChild(node) {
@@ -186,9 +202,16 @@ function fakeWindow({ observer = true, hasHas = true } = {}) {
 const el = (tag, attrs) => new FakeNode(tag, attrs);
 const svg = () => el('svg');
 
+/** The official HoverCard wrapper: a block-level `<span>` around the row. */
+function hoverCard(child) {
+  const span = el('span', { class: '_root_38jqx_3' });
+  span.appendChild(child);
+  return span;
+}
+
 /** A group row exactly shaped like the official one (spec §3.2). */
 function groupRow(key) {
-  const row = el('div', { 'data-row-key': `workspace:${key}`, role: 'treeitem' });
+  const row = el('div', { 'data-row-key': `workspace:${key}`, role: 'treeitem', 'aria-expanded': 'true' });
   row.appendChild(el('span', { class: 'slot' })).appendChild(svg());
   row.appendChild(el('span', { class: 'slot' })).appendChild(svg());
   row.appendChild(el('span', { class: 'projectText' })).appendChild(el('span', { class: 'title' }));
@@ -197,20 +220,36 @@ function groupRow(key) {
 }
 
 function sessionRow(id) {
-  return el('div', { 'data-row-key': `session:${id}` });
+  return el('div', { 'data-row-key': `session:${id}`, role: 'treeitem' });
 }
 
 function overflowRow(key) {
   return el('button', { 'data-row-key': `overflow:${key}` });
 }
 
-function group(key, { sessions = 2, overflow = true } = {}) {
+/**
+ * A group container, with the rows wrapped exactly like the official UI does
+ * (unless `wrapped: false` asks for the bare shape, which must keep working).
+ */
+function group(key, { sessions = 2, overflow = true, wrapped = true } = {}) {
   const block = el('div', { class: 'groupSection' });
   block.style.setProperty('--dsh-workspace-indent', '0px');
-  block.appendChild(groupRow(key));
-  for (let index = 0; index < sessions; index += 1) block.appendChild(sessionRow(`${key}-${index}`));
-  if (overflow) block.appendChild(overflowRow(key));
-  return block;
+  const mount = (node) => block.appendChild(wrapped ? hoverCard(node) : node);
+  const row = groupRow(key);
+  mount(row);
+  const rows = [];
+  for (let index = 0; index < sessions; index += 1) {
+    const session = sessionRow(`${key}-${index}`);
+    rows.push(session);
+    mount(session);
+  }
+  let overflowNode = null;
+  if (overflow) {
+    // The "expand the rest" button is a direct child of the container.
+    overflowNode = overflowRow(key);
+    block.appendChild(overflowNode);
+  }
+  return { block, row, rows, overflow: overflowNode, wrapper: wrapped ? block.children[0] : null };
 }
 
 /**
@@ -226,6 +265,7 @@ function sidebar({
   documentElement = true,
   observer = true,
   hasHas = true,
+  wrapped = true,
 } = {}) {
   const doc = new FakeNode('#document');
   if (documentElement) doc.documentElement = el('html');
@@ -239,10 +279,10 @@ function sidebar({
   const listArea = el('div', { class: 'listArea' });
   const treeBody = el('div', { class: 'treeBody' });
   const list = el('div', { class: 'list', role: 'tree' });
-  const recent = group(workspaceId);
-  recent.style.setProperty('--dsh-workspace-indent', indent);
-  if (row) list.appendChild(recent);
-  list.appendChild(group('other'));
+  const recent = group(workspaceId, { wrapped });
+  recent.block.style.setProperty('--dsh-workspace-indent', indent);
+  if (row) list.appendChild(recent.block);
+  list.appendChild(group('other', { wrapped }).block);
   treeBody.appendChild(list);
   listArea.appendChild(treeBody);
   root.appendChild(listArea);
@@ -251,9 +291,22 @@ function sidebar({
   doc.appendChild(body);
   doc.body = body;
   const { win, flush } = fakeWindow({ observer, hasHas });
-  const shared = { doc, win, flush, root, body, listArea, treeBody, list, recent, header: headerNode };
-  shared.rowNode = row ? recent.children[0] : null;
-  return shared;
+  return {
+    doc,
+    win,
+    flush,
+    root,
+    body,
+    listArea,
+    treeBody,
+    list,
+    recent: recent.block,
+    wrapper: recent.wrapper,
+    rowNode: row ? recent.row : null,
+    sessions: recent.rows,
+    overflow: recent.overflow,
+    header: headerNode,
+  };
 }
 
 const READY = { phase: Phase.ready, value: { workspaceId: 'w-recent' } };
@@ -295,13 +348,20 @@ test('a root-level group is promoted: tagged, indented, and given one toggle', (
   adapter.run();
 
   assert.equal(log.length, 0);
-  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
+  // The container BEHIND the HoverCard wrapper is the block, and the wrapper
+  // itself stays untouched (it is not ours).
   assert.equal(env.recent.getAttribute(ADAPTER.blockAttr), ADAPTER.rowValue);
+  assert.equal(env.wrapper.getAttribute(ADAPTER.blockAttr), null);
+  assert.equal(env.wrapper.tagName, 'SPAN');
+  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
   assert.equal(env.list.getAttribute(ADAPTER.listAttr), '');
-  assert.equal(env.recent.children[1].getAttribute(ADAPTER.subAttr), '');
-  assert.equal(env.recent.children[2].getAttribute(ADAPTER.subAttr), '');
-  assert.equal(env.recent.children[3].getAttribute(ADAPTER.overflowAttr), '');
-  assert.equal(env.recent.children[3].getAttribute(ADAPTER.subAttr), null);
+  // Session rows sit inside their own HoverCard wrapper and are found anyway.
+  assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), '');
+  assert.equal(env.sessions[1].getAttribute(ADAPTER.subAttr), '');
+  assert.equal(env.overflow.getAttribute(ADAPTER.overflowAttr), '');
+  assert.equal(env.overflow.getAttribute(ADAPTER.subAttr), null);
+  // Nothing else in the document is stamped.
+  assert.equal(env.list.children[1].getAttribute(ADAPTER.blockAttr), null);
 
   const button = buttonOf(env);
   assert.notEqual(button, null, 'the toggle is the header’s first child');
@@ -314,6 +374,16 @@ test('a root-level group is promoted: tagged, indented, and given one toggle', (
   assert.equal(button.innerHTML.includes('<svg'), true);
   assert.equal(env.doc.documentElement.classList.contains(ADAPTER.collapsedHtmlClass), false);
 
+  adapter.stop();
+});
+
+test('the bare, unwrapped row shape keeps working too', () => {
+  const env = sidebar({ wrapped: false });
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(env.recent.getAttribute(ADAPTER.blockAttr), ADAPTER.rowValue);
+  assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), '');
+  assert.notEqual(buttonOf(env), null);
   adapter.stop();
 });
 
@@ -353,7 +423,8 @@ test('a remembered collapse is applied on start, and released on stop', () => {
   assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), null);
   assert.equal(env.recent.getAttribute(ADAPTER.blockAttr), null);
   assert.equal(env.list.getAttribute(ADAPTER.listAttr), null);
-  assert.equal(env.recent.children[1].getAttribute(ADAPTER.subAttr), null);
+  assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), null);
+  assert.equal(env.overflow.getAttribute(ADAPTER.overflowAttr), null);
 });
 
 test('a nested group in tree mode is left completely alone', () => {
@@ -375,10 +446,21 @@ test('a missing group row (single list / search / rail) disables the adapter', (
 
 test('a header that carries rows of its own is not an injection point', () => {
   const env = sidebar();
-  env.header.appendChild(el('div', { 'data-row-key': 'workspace:stray' }));
+  env.header.appendChild(el('div', { 'data-row-key': 'workspace:stray', role: 'treeitem' }));
   const { adapter } = adapterFor(env);
   adapter.run();
   assert.equal(buttonOf(env), null, 'no row lookup may mistake this header for the list');
+  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), null);
+});
+
+test('a row that is not the official group shape is left alone', () => {
+  const env = sidebar();
+  // A row whose second cell is not a chevron: not something we understand well
+  // enough to restyle.
+  env.wrapper.children[0].children.splice(1, 1);
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(buttonOf(env), null);
   assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), null);
 });
 
@@ -403,7 +485,28 @@ test('re-running is idempotent: one tag per node, one button', () => {
     1,
   );
   assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
-  assert.equal(env.recent.children[1].getAttribute(ADAPTER.subAttr), '');
+  assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), '');
+  assert.equal(env.overflow.getAttribute(ADAPTER.overflowAttr), '');
+});
+
+test('a stray duplicate of our toggle is collapsed to one working toggle', () => {
+  const env = sidebar();
+  const storage = memoryStorage();
+  // Nothing official clones the header, so this cannot happen today — but the
+  // adapter must not stack toggles or reuse a dead one if it ever did.
+  env.header.prepend(el('button', { class: ADAPTER.collapseButtonClass }));
+  env.header.prepend(el('button', { class: ADAPTER.collapseButtonClass }));
+  const { adapter } = adapterFor(env, { storage });
+  adapter.run();
+
+  const mine = env.header.children.filter((child) => child.className === ADAPTER.collapseButtonClass);
+  assert.equal(mine.length, 1);
+  assert.equal(mine[0].getAttribute('aria-expanded'), 'true', 'the surviving toggle is wired up');
+  mine[0].dispatch('click');
+  assert.equal(storage.map.get(WORKSPACES_COLLAPSED_KEY), '1');
+
+  adapter.stop();
+  assert.equal(buttonOf(env), null);
 });
 
 test('an official re-render is healed on the next pass, and by the observer', () => {
@@ -411,16 +514,18 @@ test('an official re-render is healed on the next pass, and by the observer', ()
   const { adapter } = adapterFor(env);
   adapter.start();
 
-  // React rebuilt the list: new nodes, our attributes gone, our button gone.
+  // React rebuilt the list: it detaches the old nodes (which is what makes the
+  // cached row unusable) and renders fresh ones without our attributes.
+  env.list.removeChild(env.list.children[0]);
   const rebuilt = group('w-recent');
-  env.list.children[0] = rebuilt;
-  rebuilt.parentElement = env.list;
+  env.list.prepend(rebuilt.block);
   env.header.removeChild(buttonOf(env));
 
   adapter.run();
-  assert.equal(rebuilt.children[0].getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
+  assert.equal(rebuilt.row.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
+  assert.equal(rebuilt.block.getAttribute(ADAPTER.blockAttr), ADAPTER.rowValue);
+  assert.equal(rebuilt.rows[0].getAttribute(ADAPTER.subAttr), '');
   assert.equal(buttonOf(env).getAttribute('aria-expanded'), 'true');
-  assert.equal(rebuilt.children[1].getAttribute(ADAPTER.subAttr), '');
 
   // …and the observer schedules that pass without being called by hand.
   FakeMutationObserver.instances.at(-1).trigger();
@@ -439,16 +544,30 @@ test('promotion resumes when the group row comes back (flat list -> grouped)', (
   // The user picked "group by workspace" again: the official list re-renders
   // with the group row, and nothing else tells us about it.
   const recent = group('w-recent');
-  env.list.children.unshift(recent);
-  recent.parentElement = env.list;
+  env.list.children.unshift(recent.block);
+  recent.block.parentElement = env.list;
   FakeMutationObserver.instances.at(-1).trigger();
   env.flush();
   env.flush();
 
   assert.notEqual(buttonOf(env), null, 'the toggle is back');
-  assert.equal(recent.children[0].getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
-  assert.equal(recent.children[1].getAttribute(ADAPTER.subAttr), '');
+  assert.equal(recent.row.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
+  assert.equal(recent.rows[0].getAttribute(ADAPTER.subAttr), '');
   adapter.stop();
+});
+
+test('a slowed-down pass cannot re-apply the promotion after stop', () => {
+  const env = sidebar();
+  const { adapter } = adapterFor(env);
+  adapter.start();
+  assert.notEqual(buttonOf(env), null);
+
+  // A frame is already queued when the composition is torn down.
+  adapter.stop();
+  env.flush();
+  assert.equal(buttonOf(env), null, 'a queued pass must not resurrect the toggle');
+  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), null);
+  assert.equal(env.doc.documentElement.classList.contains(ADAPTER.collapsedHtmlClass), false);
 });
 
 test('without :has() the toggle is skipped but the restyle still happens', () => {

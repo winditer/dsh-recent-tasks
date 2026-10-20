@@ -466,6 +466,8 @@ function createSectionAdapter({
   let scheduled = null;
   let unsubscribe = null;
   let button = null;
+  let stopped = false;
+  let lastRow = null;
   let tagged = /* @__PURE__ */ new Map();
   const raf = typeof win?.requestAnimationFrame === "function" ? { set: (fn) => win.requestAnimationFrame(fn), clear: (id) => win.cancelAnimationFrame?.(id) } : { set: (fn) => win?.setTimeout?.(fn, 16), clear: (id) => win?.clearTimeout?.(id) };
   const attr = (node, name) => typeof node?.getAttribute === "function" ? node.getAttribute(name) : null;
@@ -489,6 +491,13 @@ function createSectionAdapter({
     }
     return false;
   }
+  function hasWorkspaceRow(node) {
+    for (const child of childrenOf(node)) {
+      if (keyOf(child).startsWith("workspace:")) return true;
+      if (hasWorkspaceRow(child)) return true;
+    }
+    return false;
+  }
   function findRow(workspaceId) {
     try {
       return doc?.querySelector?.(`[data-row-key="workspace:${attrValue(workspaceId)}"]`) ?? null;
@@ -498,18 +507,20 @@ function createSectionAdapter({
   }
   function witness(workspaceId) {
     const missing = { rowFound: false, indent: "", listFound: false, headerFound: false };
-    const row = findRow(workspaceId);
+    let row = lastRow;
+    if (!row || row.isConnected === false || keyOf(row) !== `workspace:${workspaceId}`) {
+      row = findRow(workspaceId);
+      lastRow = row;
+    }
     if (!row || roleOf(row) !== "treeitem") return missing;
     const cells = childrenOf(row);
+    if (attr(row, "aria-expanded") === null) return missing;
     if (cells.length < 3 || !hasSvg(cells[0]) || !hasSvg(cells[1])) return missing;
-    const block = row.parentElement ?? null;
-    const list = ancestorWithRole(block, "tree");
-    if (!block || !list || block.parentElement !== list) return missing;
-    if (!childrenOf(list).some(
-      (group) => childrenOf(group).some((child) => keyOf(child).startsWith("workspace:"))
-    )) {
-      return missing;
-    }
+    const list = ancestorWithRole(row, "tree");
+    let block = row.parentElement ?? null;
+    while (block && block.parentElement !== list) block = block.parentElement;
+    if (!block || block.parentElement !== list) return missing;
+    if (!childrenOf(list).some((group) => hasWorkspaceRow(group))) return missing;
     const listArea = list.parentElement?.parentElement ?? null;
     const root = listArea?.parentElement ?? null;
     const header = root?.firstElementChild ?? null;
@@ -583,6 +594,10 @@ function createSectionAdapter({
     node.className = ADAPTER.collapseButtonClass;
     node.innerHTML = CHEVRON_SVG;
     node.setAttribute("type", "button");
+    return activate(node);
+  }
+  function activate(node) {
+    if (node.__dshRtToggle === true) return node;
     node.addEventListener("click", (event) => {
       try {
         event.preventDefault?.();
@@ -593,6 +608,10 @@ function createSectionAdapter({
         logger2.warn("the workspaces collapse toggle failed:", error);
       }
     });
+    try {
+      node.__dshRtToggle = true;
+    } catch {
+    }
     return node;
   }
   function ensureButton(header, collapsed) {
@@ -604,6 +623,7 @@ function createSectionAdapter({
       if (typeof header.prepend === "function") header.prepend(node);
       else header.insertBefore?.(node, header.firstChild ?? null);
     }
+    activate(node);
     const label = t(collapsed ? "expand.workspaces" : "collapse.workspaces");
     for (const [name, value] of [
       ["aria-expanded", collapsed ? "false" : "true"],
@@ -621,11 +641,15 @@ function createSectionAdapter({
     desired.set(row, /* @__PURE__ */ new Map([[ADAPTER.rowAttr, ADAPTER.rowValue]]));
     desired.set(block, /* @__PURE__ */ new Map([[ADAPTER.blockAttr, ADAPTER.rowValue]]));
     desired.set(list, /* @__PURE__ */ new Map([[ADAPTER.listAttr, ""]]));
-    for (const child of childrenOf(block)) {
-      const key = keyOf(child);
-      if (key.startsWith("session:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.subAttr, ""]]));
-      else if (key.startsWith("overflow:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.overflowAttr, ""]]));
-    }
+    const walk = (node) => {
+      for (const child of childrenOf(node)) {
+        const key = keyOf(child);
+        if (key.startsWith("session:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.subAttr, ""]]));
+        else if (key.startsWith("overflow:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.overflowAttr, ""]]));
+        walk(child);
+      }
+    };
+    walk(block);
     return desired;
   }
   function watch() {
@@ -646,6 +670,7 @@ function createSectionAdapter({
     untagAll();
   }
   function run() {
+    if (stopped) return;
     scheduled = null;
     try {
       const snapshot = controller.store.getSnapshot();
@@ -664,14 +689,15 @@ function createSectionAdapter({
     }
   }
   function schedule() {
-    if (scheduled !== null) return;
+    if (stopped || scheduled !== null) return;
     try {
-      scheduled = raf.set(() => run());
+      scheduled = raf.set(() => run()) ?? true;
     } catch {
       scheduled = null;
     }
   }
   function stop() {
+    stopped = true;
     if (scheduled !== null) {
       try {
         raf.clear(scheduled);
@@ -679,6 +705,7 @@ function createSectionAdapter({
       }
       scheduled = null;
     }
+    lastRow = null;
     try {
       unsubscribe?.();
     } catch {
@@ -692,6 +719,7 @@ function createSectionAdapter({
     clear();
   }
   function start() {
+    stopped = false;
     watch();
     run();
     try {
@@ -759,7 +787,10 @@ var CSS = `
    official class names: those are build hashes that already changed once. Each
    selector repeats its attribute so the plugin rule (0,2,0) outranks the
    official module rule (0,1,0) whatever the injection order \u2014 by specificity,
-   never by an override flag.
+   never by an override flag. The block rule repeats it twice because its
+   official competitor is the two-class
+   groupSection+groupSection{margin-top:4px} (0,2,0): a tie there would be
+   settled by stylesheet order, and (0,3,0) settles it.
    The indent steps are 12px, the official tree step (spec \xA79-2). */
 .dsh-recent-tasks-collapse{display:inline-flex;flex:none;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary,#8f959e);cursor:pointer}
 .dsh-recent-tasks-collapse:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
@@ -770,7 +801,7 @@ var CSS = `
 [data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}
-[data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
+[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
 [data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}
 [data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}
 html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}
