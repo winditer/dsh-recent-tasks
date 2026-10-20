@@ -301,9 +301,13 @@ export function createSectionAdapter({
     // Session rows and the "expand the rest" button sit at whatever depth the
     // official UI chooses (each session row is wrapped in its own HoverCard
     // <span>, ui-workspace:2272), so look for `data-row-key` anywhere inside the
-    // block. Nested child workspaces are left alone: their keys say `workspace:`.
+    // block. Two things the walk must NOT touch: a nested child workspace's own
+    // rows (their keys are `workspace:`), and anything inside the child-group
+    // container `div[role="group"]`, whose rows keep the official indents —
+    // stamping those would push a child block's sessions past their own title.
     const walk = (node) => {
       for (const child of childrenOf(node)) {
+        if (roleOf(child) === 'group') continue;
         const key = keyOf(child);
         if (key.startsWith('session:')) desired.set(child, new Map([[ADAPTER.subAttr, '']]));
         else if (key.startsWith('overflow:')) desired.set(child, new Map([[ADAPTER.overflowAttr, '']]));
@@ -372,10 +376,11 @@ export function createSectionAdapter({
   function schedule() {
     if (stopped || scheduled !== null) return;
     try {
-      // `raf.set` legitimately returns undefined when the harness has neither
-      // rAF nor setTimeout; storing that would leave the sentinel non-null
-      // forever and silently swallow every later pass.
-      scheduled = raf.set(() => run()) ?? true;
+      // A harness with neither rAF nor setTimeout returns undefined and queues
+      // nothing at all, so the sentinel stays null and the next pass may try
+      // again. Storing `undefined` here would compare `!== null` forever and
+      // silently swallow every later pass.
+      scheduled = raf.set(() => run()) ?? null;
     } catch {
       scheduled = null;
     }

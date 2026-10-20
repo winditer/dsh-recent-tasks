@@ -643,6 +643,7 @@ function createSectionAdapter({
     desired.set(list, /* @__PURE__ */ new Map([[ADAPTER.listAttr, ""]]));
     const walk = (node) => {
       for (const child of childrenOf(node)) {
+        if (roleOf(child) === "group") continue;
         const key = keyOf(child);
         if (key.startsWith("session:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.subAttr, ""]]));
         else if (key.startsWith("overflow:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.overflowAttr, ""]]));
@@ -691,7 +692,7 @@ function createSectionAdapter({
   function schedule() {
     if (stopped || scheduled !== null) return;
     try {
-      scheduled = raf.set(() => run()) ?? true;
+      scheduled = raf.set(() => run()) ?? null;
     } catch {
       scheduled = null;
     }

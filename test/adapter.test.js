@@ -231,10 +231,18 @@ function overflowRow(key) {
  * A group container, with the rows wrapped exactly like the official UI does
  * (unless `wrapped: false` asks for the bare shape, which must keep working).
  */
-function group(key, { sessions = 2, overflow = true, wrapped = true } = {}) {
+function group(key, { sessions = 2, overflow = true, wrapped = true, wrappers = 1 } = {}) {
   const block = el('div', { class: 'groupSection' });
   block.style.setProperty('--dsh-workspace-indent', '0px');
-  const mount = (node) => block.appendChild(wrapped ? hoverCard(node) : node);
+  const mount = (node) => {
+    if (!wrapped) {
+      block.appendChild(node);
+      return;
+    }
+    let top = node;
+    for (let layer = 0; layer < wrappers; layer += 1) top = hoverCard(top);
+    block.appendChild(top);
+  };
   const row = groupRow(key);
   mount(row);
   const rows = [];
@@ -266,6 +274,7 @@ function sidebar({
   observer = true,
   hasHas = true,
   wrapped = true,
+  wrappers = 1,
 } = {}) {
   const doc = new FakeNode('#document');
   if (documentElement) doc.documentElement = el('html');
@@ -279,10 +288,10 @@ function sidebar({
   const listArea = el('div', { class: 'listArea' });
   const treeBody = el('div', { class: 'treeBody' });
   const list = el('div', { class: 'list', role: 'tree' });
-  const recent = group(workspaceId, { wrapped });
+  const recent = group(workspaceId, { wrapped, wrappers });
   recent.block.style.setProperty('--dsh-workspace-indent', indent);
   if (row) list.appendChild(recent.block);
-  list.appendChild(group('other', { wrapped }).block);
+  list.appendChild(group('other', { wrapped, wrappers }).block);
   treeBody.appendChild(list);
   listArea.appendChild(treeBody);
   root.appendChild(listArea);
@@ -509,6 +518,63 @@ test('a stray duplicate of our toggle is collapsed to one working toggle', () =>
   assert.equal(buttonOf(env), null);
 });
 
+test('a row without aria-expanded is not a group row we understand', () => {
+  const env = sidebar();
+  // Only the official group row carries `aria-expanded`; a session row does not,
+  // and a row that lost it is a shape we refuse to restyle.
+  env.rowNode.removeAttribute('aria-expanded');
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(buttonOf(env), null);
+  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), null);
+});
+
+test('a row nested anywhere inside the header disqualifies it', () => {
+  const env = sidebar();
+  // Depth matters: the check looks for a row ANYWHERE inside the header, not just
+  // among its direct children.
+  const wrapper = el('span');
+  wrapper.appendChild(el('div', { 'data-row-key': 'workspace:stray', role: 'treeitem' }));
+  env.header.appendChild(wrapper);
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(buttonOf(env), null);
+  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), null);
+});
+
+test('a nested child workspace keeps the official indents', () => {
+  const env = sidebar();
+  // In tree mode a group can hold child workspaces in `div[role="group"]`, and
+  // those sessions are `session:` keys too. They must not get our extra step, or
+  // a child block's chats would sit deeper than its own title.
+  const nested = el('div', { role: 'group' });
+  const childRow = groupRow('child');
+  nested.appendChild(hoverCard(childRow));
+  const childSession = sessionRow('child-0');
+  nested.appendChild(hoverCard(childSession));
+  const childOverflow = overflowRow('child');
+  nested.appendChild(childOverflow);
+  env.recent.appendChild(nested);
+
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(env.recent.getAttribute(ADAPTER.blockAttr), ADAPTER.rowValue);
+  assert.equal(childRow.getAttribute(ADAPTER.rowAttr), null);
+  assert.equal(childSession.getAttribute(ADAPTER.subAttr), null);
+  assert.equal(childOverflow.getAttribute(ADAPTER.overflowAttr), null);
+  assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), '', 'our own rows are still stamped');
+});
+
+test('the block is found however deeply the row is wrapped', () => {
+  const env = sidebar({ wrappers: 2 });
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(env.recent.getAttribute(ADAPTER.blockAttr), ADAPTER.rowValue);
+  assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
+  assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), '');
+  adapter.stop();
+});
+
 test('an official re-render is healed on the next pass, and by the observer', () => {
   const env = sidebar();
   const { adapter } = adapterFor(env);
@@ -562,7 +628,9 @@ test('a slowed-down pass cannot re-apply the promotion after stop', () => {
   adapter.start();
   assert.notEqual(buttonOf(env), null);
 
-  // A frame is already queued when the composition is torn down.
+  // A frame must be genuinely QUEUED for this to prove anything: the observer
+  // fires, the pass is deferred, and the composition is torn down before it runs.
+  FakeMutationObserver.instances.at(-1).trigger();
   adapter.stop();
   env.flush();
   assert.equal(buttonOf(env), null, 'a queued pass must not resurrect the toggle');

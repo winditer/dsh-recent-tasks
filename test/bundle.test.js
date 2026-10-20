@@ -452,26 +452,25 @@ test('apply registers the shortcut with non-conflicting defaults when available'
 });
 
 test('the artifact styles the promoted section without naming an official class', () => {
-  // Every selector below is keyed on an attribute THIS plugin puts on the node.
+  // Whole `selector{declaration}` rules, not just selectors: swapping the two
+  // `nth-child` declarations, or the 8px/28px steps, leaves a selector-only check
+  // green while the browser renders the folder icon and hides the chevron, or
+  // puts a child block's chats deeper than its own title.
   for (const rule of [
-    '[data-dsh-rt-row][data-dsh-rt-row]',
-    '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1)',
-    '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2)',
-    '[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]',
-    '[data-dsh-rt-sub][data-dsh-rt-sub]',
-    '[data-dsh-rt-overflow][data-dsh-rt-overflow]',
-    'dsh-recent-tasks-workspaces-collapsed',
-    'dsh-recent-tasks-collapse',
-    'calc(8px + 12px + var(--dsh-workspace-indent,0px))',
-    'calc(28px + 12px + var(--dsh-workspace-indent,0px))',
-    // The hide rule is only safe with BOTH halves: the `:has()` gate keeps it
-    // from hiding the whole list, and the `>div:not(...)` part keeps it from
-    // hiding the promoted block itself. Asserting the substring `:has(...)`
-    // alone would let a rule that hides everything pass.
+    '[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}',
+    '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}',
+    '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}',
+    '[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}',
+    '[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}',
+    '[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}',
+    // The hide rule is only safe with BOTH halves: the `:has()` gate keeps it from
+    // hiding the whole list, and the `>div:not(...)` part keeps it from hiding the
+    // promoted block itself.
     'html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}',
   ]) {
     assert.equal(bundle.includes(rule), true, `the artifact is missing ${rule}`);
   }
+  assert.equal(bundle.includes('.dsh-recent-tasks-collapse{'), true);
   assert.equal(bundle.includes('!important'), false, 'specificity, not !important');
 });
 
