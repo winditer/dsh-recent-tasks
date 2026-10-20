@@ -22,6 +22,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { ALLOWED_EXTERNALS, buildClientBundle } from '../scripts/build.mjs';
+import { ADAPTER } from '../src/client-core.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'));
@@ -468,6 +469,25 @@ test('the artifact styles the promoted section without naming an official class'
     assert.equal(bundle.includes(rule), true, `the artifact is missing ${rule}`);
   }
   assert.equal(bundle.includes('!important'), false, 'specificity, not !important');
+});
+
+test('the stylesheet selects exactly the attributes the adapter stamps', () => {
+  // A rename in ADAPTER would otherwise leave the stylesheet selecting nothing:
+  // the feature would die silently while every other test stayed green.
+  const source = readFileSync(resolve(ROOT, 'src/client.js'), 'utf8');
+  for (const attr of [
+    ADAPTER.rowAttr,
+    ADAPTER.blockAttr,
+    ADAPTER.listAttr,
+    ADAPTER.subAttr,
+    ADAPTER.overflowAttr,
+  ]) {
+    assert.equal(source.includes(`${attr}][${attr}]`), true, `the stylesheet misses ${attr}`);
+    assert.equal(bundle.includes(`${attr}][${attr}]`), true, `the artifact misses ${attr}`);
+  }
+  assert.equal(source.includes(ADAPTER.collapsedHtmlClass), true);
+  assert.equal(bundle.includes(ADAPTER.collapsedHtmlClass), true);
+  assert.equal(bundle.includes(ADAPTER.collapseButtonClass), true);
 });
 
 test('no official class hash is hard-coded anywhere', () => {
