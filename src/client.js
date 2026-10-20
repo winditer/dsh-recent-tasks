@@ -119,19 +119,41 @@ const CSS = `
    official competitor is the two-class
    groupSection+groupSection{margin-top:4px} (0,2,0): a tie there would be
    settled by stylesheet order, and (0,3,0) settles it.
-   The indent steps are 12px, the official tree step (spec §9-2). */
-.dsh-recent-tasks-collapse{display:inline-flex;flex:none;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary,#8f959e);cursor:pointer}
+   The indent steps are 12px, the official tree step (spec §9-2).
+
+   ---- Alignment (owner request 2026-10-20) --------------------------------
+   The global panel rows above this section (自动化任务 / 插件市场 / 插件) are
+   built as: 2px margin + 8px padding = a 10px inset inside the sidebar root's
+   own 12px padding, then a 16px glyph, then an 8px gap. That fixes the two
+   reference columns, measured from the root's left edge:
+     GLYPH column 22px   TITLE column 46px
+   and both travel with the root padding, so they hold at any sidebar width.
+   The section header reproduces the metrics exactly (10px inset, 16px toggle,
+   8px gap), the promoted row repeats them (chevron on 22px, label on 46px), and
+   the list body follows:
+     · a child workspace group: its folder glyph on 46px, so its own title
+       lands on 68px (46 + 16px folder + 6px official gap);
+     · a session: its name lines up with ITS OWN group's title — 68px for those
+       groups, 46px for this block, whose row is a title itself (owner's rule 3).
+   Nested rows keep the official 12px-per-depth step through the same inline
+   --dsh-workspace-indent the official rows already read. */
+.dsh-recent-tasks-collapse{display:inline-flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:16px;height:16px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary,#8f959e);cursor:pointer}
 .dsh-recent-tasks-collapse:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .dsh-recent-tasks-collapse:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#4d6bfe));outline-offset:-2px}
 .dsh-recent-tasks-collapse svg{transition:transform .15s ease-in-out}
 .dsh-recent-tasks-collapse[data-collapsed="true"] svg{transform:none}
 .dsh-recent-tasks-collapse[data-collapsed="false"] svg{transform:rotate(90deg)}
-[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
+[data-dsh-rt-header="toggle"][data-dsh-rt-header="toggle"]{padding-left:10px;gap:8px}
+[data-dsh-rt-header="plain"][data-dsh-rt-header="plain"]{padding-left:34px}
+[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:10px;gap:8px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}
 [data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}
 [data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
-[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}
-[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}
+[data-row-key^="workspace:"][data-row-key^="workspace:"]:not([data-dsh-rt-row]){padding-inline-start:calc(34px + var(--dsh-workspace-indent,0px))}
+[data-row-key^="session:"][data-row-key^="session:"]:not([data-dsh-rt-sub]){padding-inline-start:calc(36px + var(--dsh-workspace-indent,0px))}
+[data-row-key^="overflow:"][data-row-key^="overflow:"]:not([data-dsh-rt-overflow]){padding-left:calc(56px + var(--dsh-workspace-indent,0px))}
+[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(14px + var(--dsh-workspace-indent,0px))}
+[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(34px + var(--dsh-workspace-indent,0px))}
 html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}
 `;
 

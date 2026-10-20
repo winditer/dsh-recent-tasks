@@ -364,6 +364,9 @@ test('a root-level group is promoted: tagged, indented, and given one toggle', (
   assert.equal(env.wrapper.tagName, 'SPAN');
   assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
   assert.equal(env.list.getAttribute(ADAPTER.listAttr), '');
+  // The header carries the alignment MODE, not a flag: the stylesheet needs to
+  // know whether our glyph stands in the icon column (toggle) or not (plain).
+  assert.equal(env.header.getAttribute(ADAPTER.headerAttr), ADAPTER.headerToggleValue);
   // Session rows sit inside their own HoverCard wrapper and are found anyway.
   assert.equal(env.sessions[0].getAttribute(ADAPTER.subAttr), '');
   assert.equal(env.sessions[1].getAttribute(ADAPTER.subAttr), '');
@@ -645,6 +648,18 @@ test('without :has() the toggle is skipped but the restyle still happens', () =>
   assert.equal(buttonOf(env), null, 'an unsafe hide rule would lie, so there is no toggle at all');
   assert.equal(env.doc.documentElement.classList.contains(ADAPTER.collapsedHtmlClass), false);
   assert.equal(env.rowNode.getAttribute(ADAPTER.rowAttr), ADAPTER.rowValue);
+  // The header still has to be tagged — with the mode that moves the label to the
+  // title column on its own, 34px of padding instead of a 16px glyph + 8px gap.
+  assert.equal(env.header.getAttribute(ADAPTER.headerAttr), ADAPTER.headerPlainValue);
+});
+
+test('the header mode tag is given back with every other tag on stop', () => {
+  const env = sidebar();
+  const { adapter } = adapterFor(env);
+  adapter.run();
+  assert.equal(env.header.getAttribute(ADAPTER.headerAttr), ADAPTER.headerToggleValue);
+  adapter.stop();
+  assert.equal(env.header.getAttribute(ADAPTER.headerAttr), null);
 });
 
 test('a harness with no MutationObserver, no documentElement and no storage survives', () => {

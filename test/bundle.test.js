@@ -453,16 +453,33 @@ test('apply registers the shortcut with non-conflicting defaults when available'
 
 test('the artifact styles the promoted section without naming an official class', () => {
   // Whole `selector{declaration}` rules, not just selectors: swapping the two
-  // `nth-child` declarations, or the 8px/28px steps, leaves a selector-only check
-  // green while the browser renders the folder icon and hides the chevron, or
-  // puts a child block's chats deeper than its own title.
+  // `nth-child` declarations, or the insets, leaves a selector-only check green
+  // while the browser renders the folder icon and hides the chevron, or puts a
+  // child block's chats deeper than its own title.
+  //
+  // The alignment numbers are the owner's columns, all measured from the sidebar
+  // root's left edge (verified in a browser against the shipped CSS): the global
+  // panel rows above the section give a 10px inset and an 8px gap around a 16px
+  // glyph — root padding 12px + 2px margin + 8px padding = the GLYPH column at
+  // 22px; + a 16px glyph + an 8px gap = the TITLE column at 46px. So: the header
+  // inset is 10px (34px when there is no toggle to stand in the glyph column), the
+  // promoted row repeats 10px + 8px, a child group takes 34px (= 46 − 12, folder
+  // glyph on the title column), its sessions 36px (= 68 − 12 − 16 − 4, a name on
+  // that group's own title), this block's sessions 14px (= 46 − 12 − 16 − 4, a name
+  // on 46px, the owner's rule 3), and the "expand the rest" row lands on the same
+  // column as the names it follows.
   for (const rule of [
-    '[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}',
+    '[data-dsh-rt-header="toggle"][data-dsh-rt-header="toggle"]{padding-left:10px;gap:8px}',
+    '[data-dsh-rt-header="plain"][data-dsh-rt-header="plain"]{padding-left:34px}',
+    '[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:10px;gap:8px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}',
     '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}',
     '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}',
     '[data-dsh-rt-block][data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}',
-    '[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}',
-    '[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}',
+    '[data-row-key^="workspace:"][data-row-key^="workspace:"]:not([data-dsh-rt-row]){padding-inline-start:calc(34px + var(--dsh-workspace-indent,0px))}',
+    '[data-row-key^="session:"][data-row-key^="session:"]:not([data-dsh-rt-sub]){padding-inline-start:calc(36px + var(--dsh-workspace-indent,0px))}',
+    '[data-row-key^="overflow:"][data-row-key^="overflow:"]:not([data-dsh-rt-overflow]){padding-left:calc(56px + var(--dsh-workspace-indent,0px))}',
+    '[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(14px + var(--dsh-workspace-indent,0px))}',
+    '[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(34px + var(--dsh-workspace-indent,0px))}',
     // The hide rule is only safe with BOTH halves: the `:has()` gate keeps it from
     // hiding the whole list, and the `>div:not(...)` part keeps it from hiding the
     // promoted block itself.
@@ -470,6 +487,11 @@ test('the artifact styles the promoted section without naming an official class'
   ]) {
     assert.equal(bundle.includes(rule), true, `the artifact is missing ${rule}`);
   }
+  // The toggle's BOX is what stands in the glyph column — 16px, the size of the
+  // official icon slot — with the 10px triangle centred inside it, so it lines up
+  // with the panel icons above and the official chevron in the row below.
+  assert.match(bundle, /\.dsh-recent-tasks-collapse\{[^}]*box-sizing:border-box;width:16px;height:16px/,
+    'the toggle box must be 16px, the official icon-slot size');
   assert.equal(bundle.includes('.dsh-recent-tasks-collapse{'), true);
   assert.equal(bundle.includes('!important'), false, 'specificity, not !important');
 });
@@ -487,6 +509,12 @@ test('the stylesheet selects exactly the attributes the adapter stamps', () => {
   ]) {
     assert.equal(source.includes(`${attr}][${attr}]`), true, `the stylesheet misses ${attr}`);
     assert.equal(bundle.includes(`${attr}][${attr}]`), true, `the artifact misses ${attr}`);
+  }
+  // The header's attribute carries a mode, so its selectors are the value form.
+  for (const value of [ADAPTER.headerToggleValue, ADAPTER.headerPlainValue]) {
+    const form = `${ADAPTER.headerAttr}="${value}"][${ADAPTER.headerAttr}="${value}"`;
+    assert.equal(source.includes(form), true, `the stylesheet misses ${form}`);
+    assert.equal(bundle.includes(form), true, `the artifact misses ${form}`);
   }
   assert.equal(source.includes(ADAPTER.collapsedHtmlClass), true);
   assert.equal(bundle.includes(ADAPTER.collapsedHtmlClass), true);

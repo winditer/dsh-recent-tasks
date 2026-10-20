@@ -293,11 +293,15 @@ export function createSectionAdapter({
     return node;
   }
 
-  function wanted({ row, block, list }) {
+  function wanted({ row, block, list, header }, headerValue) {
     const desired = new Map();
     desired.set(row, new Map([[ADAPTER.rowAttr, ADAPTER.rowValue]]));
     desired.set(block, new Map([[ADAPTER.blockAttr, ADAPTER.rowValue]]));
     desired.set(list, new Map([[ADAPTER.listAttr, '']]));
+    // The section header carries a MODE, not a flag: the alignment insets differ
+    // when the toggle is skipped (`:has()` absent), because the label then has to
+    // reach the title column without a glyph in front of it.
+    if (header) desired.set(header, new Map([[ADAPTER.headerAttr, headerValue]]));
     // Session rows and the "expand the rest" button sit at whatever depth the
     // official UI chooses (each session row is wrapped in its own HoverCard
     // <span>, ui-workspace:2272), so look for `data-row-key` anywhere inside the
@@ -360,12 +364,15 @@ export function createSectionAdapter({
       const found = witness(workspaceId);
       if (!shouldPromoteSection(found)) return clear();
 
-      applyTags(wanted(found));
       // Without `:has()` the hide rule would match every block, so the toggle
-      // would lie: skip it and leave the section read-only (§5.5).
-      const collapsed = supportsHideRule() && readWorkspacesCollapsed(storage);
+      // would lie: skip it and leave the section read-only (§5.5). The header
+      // still gets tagged — with the mode that tells the stylesheet how far the
+      // label has to move to reach the title column on its own.
+      const toggle = supportsHideRule();
+      applyTags(wanted(found, toggle ? ADAPTER.headerToggleValue : ADAPTER.headerPlainValue));
+      const collapsed = toggle && readWorkspacesCollapsed(storage);
       setCollapsedClass(collapsed);
-      if (supportsHideRule()) ensureButton(found.header, collapsed);
+      if (toggle) ensureButton(found.header, collapsed);
       else dropButton();
     } catch (error) {
       logger.warn('the sidebar section adapter stopped:', error);

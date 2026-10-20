@@ -111,7 +111,10 @@ export const ADAPTER = Object.freeze({
   listAttr: 'data-dsh-rt-list',
   subAttr: 'data-dsh-rt-sub',
   overflowAttr: 'data-dsh-rt-overflow',
+  headerAttr: 'data-dsh-rt-header',
   rowValue: 'recent',
+  headerToggleValue: 'toggle',
+  headerPlainValue: 'plain',
   collapsedHtmlClass: 'dsh-recent-tasks-workspaces-collapsed',
   collapseButtonClass: 'dsh-recent-tasks-collapse',
 });

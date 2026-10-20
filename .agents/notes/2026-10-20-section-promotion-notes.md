@@ -74,16 +74,36 @@ The official rows rule is
 - **One exception:** the block rule needs the attribute THREE times.
   `._7514NG_groupSection+._7514NG_groupSection{margin-top:4px}` is 0,2,0, so
   a doubled attribute is a tie decided by document order; `(0,3,0)` settles it.
-- The 26px title baseline: `4px` header padding + our `18px` box + official
-  `4px` gap; rows reach 26px as `4px` + the official `16px` icon slot + `6px`
-  gap. A `display:none` first cell is not a flex item, so it adds no gap.
+- **The alignment columns (owner request 2026-10-20, measured in a real
+  browser).** The global panel rows above the section are the reference:
+  `margin:0 2px; padding:7px 8px; gap:8px` around a 16px glyph, so inside the
+  root's own 12px padding the GLYPH column is `12+2+8 = 22px` and the TITLE column
+  `22+16+8 = 46px`. The plugin reproduces those numbers: the header takes a 10px
+  inset with an 8px gap around our 16px toggle box (glyph centred on 22, label on
+  46 — the toggle is a 10px triangle centred in its slot, exactly like the official
+  `IconTriangleRightFillRegular` in the row below it, both centred at 30), the
+  promoted row repeats 10px + 8px, a child group takes `calc(34px + indent)`
+  (folder glyph on 46, its own title on 68), this block's sessions
+  `calc(14px + indent)` (names on 46, the section label's own column), a child
+  group's sessions `calc(36px + indent)` (names on that group's own title, 68), and
+  the "expand the rest" rows take `calc(34px|56px + indent)`, landing on whichever
+  column their names use. Every one of them keeps the official 12px-per-depth step
+  through `--dsh-workspace-indent`, and the `:not([data-dsh-rt-*])` guards keep the
+  generic child rules off our own promoted nodes (so those two rules can never
+  fight over order). Verified in headless Chrome against the shipped stylesheet:
+  16/16 values hit at 0.00px, no horizontal spill (list 270/270 in a 280px
+  sidebar). Re-run it with `python3 measure.py harness.html` in `/tmp/geometry`.
+- Without `:has()` there is no toggle to stand in the glyph column, and the
+  stamped header attribute says which case we are in: `data-dsh-rt-header="toggle"`
+  means the 16px glyph + 8px gap carry the label to 46px, `="plain"` means the
+  header itself gets 34px of padding to reach it without a glyph.
 - `--dsh-workspace-indent` is inline and does not inherit, so reading it with
   `getPropertyValue` distinguishes a root-level group (`0px`, promotable) from a
   group nested by tree mode (`12px`, not promotable).
 
 ## 4. The collapse toggle, and why the hide rule is shaped that way
 
-One element is injected into the official DOM: an 18×18 `<button>` prepended to
+One element is injected into the official DOM: a 16×16 `<button>` prepended to
 the section header (the same chain `list → treeBody → listArea → root`, whose
 first element child is `div.sectionHeader`). It carries `aria-expanded`,
 `aria-label`, `title` and `data-collapsed`, and its click stops propagation so the
