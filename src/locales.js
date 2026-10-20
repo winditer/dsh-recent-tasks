@@ -78,6 +78,8 @@ export const zh = {
 
   'guide.title': '不指定工作区即可开始对话',
   'guide.dismiss': '知道了',
+  'collapse.workspaces': '收起工作区列表',
+  'expand.workspaces': '展开工作区列表',
   retry: '重试',
   'err.hostFail': '最近任务 Host 请求失败 ({0})',
   'err.startFailed': '无法打开最近任务对话：{0}',
@@ -119,6 +121,8 @@ export const en = {
 
   'guide.title': 'Start a chat without a workspace',
   'guide.dismiss': 'Got it',
+  'collapse.workspaces': 'Collapse the workspaces list',
+  'expand.workspaces': 'Expand the workspaces list',
   retry: 'Retry',
   'err.hostFail': 'Recent-tasks host request failed ({0})',
   'err.startFailed': 'Could not open a recent-tasks chat: {0}',
