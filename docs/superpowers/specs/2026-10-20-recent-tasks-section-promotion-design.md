@@ -233,7 +233,9 @@ html.dsh-recent-tasks-workspaces-collapsed
 
 1. 每轮先跑一次 §5.1 的判据（停用/启用）；
 2. 启用时幂等重放：重打 §5.3 的五个标签、`ensureButton`、应用 `<html>` 状态类；
-3. 触发时机：`MutationObserver`（只观察 `root` 子树，`childList` + `subtree`）+ 现有 30s 轮询 + 状态 `state` 变更时各跑一次；所有回调做 250ms 内的合并（同一帧只跑一次）；
+3. 触发时机：`MutationObserver` 观察 **`document.body`** 子树（`childList`）+ 现有 30s 轮询 + `state` 快照变更时各跑一次；所有回调做同一帧内的合并（每帧最多一次），且一轮下来若没有任何变化则**不写任何 DOM**；
+   为什么锚在 `body` 而不是某个侧边栏节点：需要自愈的状态（单列表、搜索中、rail）恰恰是"官方根本没渲染列表"的状态，此时除了 `body` 没有任何节点能保证存在；锚在侧边栏节点上反而会在 React 重建该节点后彻底失去信号。代价是每帧一次选择器查询（一轮无变化时为零写入）。
+4. 停用（`clear()`）与销毁（`stop()`）分开：前者的原因是"这一刻没有抓手"，会摘掉标签/按钮/状态类但保留观察与订阅，所以用户切回分组视图、或 `state` 恢复就绪时会自动重新提升；只有插件卸载（`ctx.effect` 的清理）才 `stop()`，连观察器与订阅一起断开。
 4. 卸载：`ctx.effect(() => () => stopAdapter(), 'dsh-recent-tasks: adapter')`，与现有样式注入同一模式。
 
 ### 5.7 与官方功能的相互影响

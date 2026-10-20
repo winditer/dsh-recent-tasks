@@ -34,6 +34,16 @@ The alternative — a plugin-drawn group — cannot work: the sidebar's groups *
 - the file-access boundary is unchanged: the session's sandbox root is that folder, and escalation inside the chat works exactly as in a workspace chat (design §8.7);
 - nothing official is patched, no `workspace` locale string is touched, and 未分组 keeps working untouched; the plugin's own group name is kept in the active language by renaming *its own* record, never the built-in namespace and never another group.
 
+## Sidebar hierarchy: Recent tasks is its own block
+
+`最近任务` reads as a block-level section beside the official workspaces heading, and the two collapse independently: the arrow in front of "Workspaces" hides the *other* workspace groups (Recent tasks stays), while the arrow in front of "Recent tasks" collapses its own chats, which sit one indent step in from its title.
+
+- This is presentation only: the group is still one real workspace record pinned last — no official code is patched and no workspace data is rewritten.
+- It keys on official *stable* attributes (`data-row-key`, `role`, the inline `--dsh-workspace-indent`) and never on official class names, which are build hashes that change between releases. If a DSH update moves those anchors the promotion **disables itself**: the sidebar falls back to the stock look with nothing left behind, one line in the console.
+- It also stands down for the flat list, while searching, in the 56px rail, and in tree mode when the folder is nested under another workspace (then it is not a peer). Switching back re-applies it immediately.
+- Known trade-offs: the block scrolls with the workspace list, and while "Workspaces" is collapsed the highlight of a chat inside a hidden group is not visible until you expand it again.
+- The collapse flag lives in your own browser storage (`dsh.recent-tasks.workspaces-collapsed.v1`); it is never reported anywhere.
+
 ## Requirements
 
 - [DSH](https://github.com/deepseek-ai/deepseek-harness) with a `web` or `desktop` profile, `0.2.0-rc.1` or newer (developed and verified on `0.2.0-rc.2`, cordis `~4.0.4`)
