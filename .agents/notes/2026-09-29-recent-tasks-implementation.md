@@ -4,6 +4,9 @@ Source of truth for the design: `/Users/haifeng/Documents/dsh-tmp/docs/superpowe
 (status: Draft). These notes record what the implementation confirmed, what it
 changed, and why — the spec itself is not edited here.
 
+> 0.2.0 (sidebar section promotion) has its own notes: `2026-10-20-section-promotion-notes.md`
+> — that is where the official DOM facts for the promoted block live.
+
 ## 1. Route A won over route B for settings (§8.6)
 
 The spec named **route A** (official `Config` + `dsh-settings` /

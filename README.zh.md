@@ -86,7 +86,7 @@ Web profile 用 `--profile web`。重启 DSH（完全退出再打开），侧边
 每个 Release 都会附带打包好的安装包，既不用下载整个仓库，使用端也不需要编译：
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.1.0/dsh-recent-tasks-0.1.0.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.2.0/dsh-recent-tasks-0.2.0.tgz
 ```
 
 这个 URL 特意固定到 tag，而不是写成 `releases/latest/download/…`：`latest` 每次请求现算，但文件名是字面量——带版本号的文件名会在下一个 Release 改名的那一刻让那条 URL 失效。
@@ -144,7 +144,7 @@ dsh plugin --profile desktop add .
 
 ```bash
 node scripts/build.mjs      # 构建 dist/client.js
-node --test test/*.test.js  # 49 项测试：协议、Host、客户端逻辑、bundle 契约
+node --test test/*.test.js  # 75 项测试：协议、Host、客户端逻辑、侧边栏区块适配器、bundle 契约
 node scripts/build.mjs && node --test test/*.test.js   # 即 npm run verify
 npm pack --dry-run          # 查看将要发布的文件清单
 ```
@@ -157,13 +157,15 @@ npm pack --dry-run          # 查看将要发布的文件清单
 |---|---|
 | `src/host.js` → `lib/index.js` | Host 半边：`Config`、注册逻辑、JSON API、实时配置监听 |
 | `src/client.js` → `dist/client.js` | 浏览器半边：侧边栏入口、设置行、轮询、快捷键 |
-| `src/client-core.js` | 无 React 的纯逻辑：状态机、`planCreate`、快照 store、快捷键判定 |
+| `src/client-core.js` | 无 React 的纯逻辑：状态机、`planCreate`、快照 store、快捷键判定、折叠标志、区块提升判据 |
+| `src/client-adapter.js` | 侧边栏区块适配器：运行时定位官方节点、打 `data-dsh-rt-*` 标签、注入折叠开关、自愈重放（表现层，不写数据） |
 | `src/protocol.js` | 共享词表：错误码、方法、路径处理、响应解析 |
 | `src/locales.js` | `recentTasks` 中英文词典（扁平键，键集 1:1） |
 | `assets/` | 本 README 使用的效果图（插件市场也会抓取） |
 | `screenshots.json` | 插件市场读取的效果图清单（约定：放在 `package.json` 旁，路径相对于本仓库） |
-| `test/` | `protocol` · `host` · `client` · `bundle` |
-| `.agents/notes/` | 本次实现遵循的设计笔记，含与草稿 SPEC 的偏离说明 |
+| `test/` | `protocol` · `host` · `client` · `adapter`（假 DOM）· `bundle` |
+| `docs/superpowers/` | 本仓库自己的 SPEC 与实现计划（`specs/`、`plans/`） |
+| `.agents/notes/` | 实现笔记，含已验证的官方事实与与草稿 SPEC 的偏离说明 |
 
 ## 许可
 

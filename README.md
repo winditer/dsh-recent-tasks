@@ -86,7 +86,7 @@ The built browser half (`dist/client.js`) is **committed** on purpose. A `github
 Every release attaches the packed package, so the whole repository is not downloaded and nothing is compiled on the consuming side:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.1.0/dsh-recent-tasks-0.1.0.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.2.0/dsh-recent-tasks-0.2.0.tgz
 ```
 
 The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.
@@ -144,7 +144,7 @@ Precedence: the profile patch layer wins over this package's bundled defaults, s
 
 ```bash
 node scripts/build.mjs      # build dist/client.js
-node --test test/*.test.js  # 49 tests: protocol, host, client logic, bundle contract
+node --test test/*.test.js  # 75 tests: protocol, host, client logic, sidebar section adapter, bundle contract
 node scripts/build.mjs && node --test test/*.test.js   # = npm run verify
 npm pack --dry-run          # inspect the published file list
 ```
@@ -157,13 +157,15 @@ npm pack --dry-run          # inspect the published file list
 |---|---|
 | `src/host.js` → `lib/index.js` | Host half: `Config`, the registry service, the JSON API, the volatile-config listener |
 | `src/client.js` → `dist/client.js` | Browser half: sidebar entry, settings row, refresh loop, shortcut |
-| `src/client-core.js` | React-free logic: state machine, `planCreate`, snapshot store, shortcut resolution |
+| `src/client-core.js` | React-free logic: state machine, `planCreate`, snapshot store, shortcut resolution, collapse flag, promotion predicate |
+| `src/client-adapter.js` | Sidebar section adapter: locates the official nodes at runtime, stamps `data-dsh-rt-*`, injects the collapse toggle, replays on re-render (presentation only, writes no data) |
 | `src/protocol.js` | Shared vocabulary: codes, methods, path handling, response parsing |
 | `src/locales.js` | `recentTasks` zh/en dictionaries (flat keys, 1:1 key sets) |
 | `assets/` | Screenshots used by this README (and picked up by the plugin market) |
 | `screenshots.json` | The screenshot list the plugin market reads (its convention: declared beside `package.json`, paths relative to the repo) |
-| `test/` | `protocol` · `host` · `client` · `bundle` |
-| `.agents/notes/` | The design notes this implementation follows, including where it deviates from the draft spec |
+| `test/` | `protocol` · `host` · `client` · `adapter` (hand-rolled DOM) · `bundle` |
+| `docs/superpowers/` | This repo's own specs and implementation plans (`specs/`, `plans/`) |
+| `.agents/notes/` | Implementation notes, including verified official facts and deviations from the draft spec |
 
 ## License
 
