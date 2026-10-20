@@ -86,7 +86,7 @@ The built browser half (`dist/client.js`) is **committed** on purpose. A `github
 Every release attaches the packed package, so the whole repository is not downloaded and nothing is compiled on the consuming side:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.2.1/dsh-recent-tasks-0.2.1.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.3.0/dsh-recent-tasks-0.3.0.tgz
 ```
 
 The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.

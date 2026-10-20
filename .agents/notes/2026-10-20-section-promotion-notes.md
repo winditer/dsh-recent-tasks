@@ -1,4 +1,4 @@
-# dsh-recent-tasks 0.2.0 — sidebar section-promotion notes
+# dsh-recent-tasks — sidebar section-promotion notes (promotion: 0.2.0; alignment: 0.3.0)
 
 Source of truth for this change: `docs/superpowers/specs/2026-10-20-recent-tasks-section-promotion-design.md`
 (Approved) and `docs/superpowers/plans/2026-10-20-recent-tasks-section-promotion.md`.

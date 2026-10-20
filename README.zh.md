@@ -86,7 +86,7 @@ Web profile 用 `--profile web`。重启 DSH（完全退出再打开），侧边
 每个 Release 都会附带打包好的安装包，既不用下载整个仓库，使用端也不需要编译：
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.2.1/dsh-recent-tasks-0.2.1.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.3.0/dsh-recent-tasks-0.3.0.tgz
 ```
 
 这个 URL 特意固定到 tag，而不是写成 `releases/latest/download/…`：`latest` 每次请求现算，但文件名是字面量——带版本号的文件名会在下一个 Release 改名的那一刻让那条 URL 失效。

@@ -1,6 +1,6 @@
 {
   "name": "dsh-recent-tasks",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A collapsible Recent tasks block at the section level of the DSH sidebar: chats with no workspace land there instead of piling up in 未分组 / DSH 侧边栏里与「工作区」同级、可独立折叠的「最近任务」区块：没有工作区的对话自动归到这里。",
   "license": "MIT",
   "type": "module",
