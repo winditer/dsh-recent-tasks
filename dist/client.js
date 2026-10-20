@@ -82,6 +82,8 @@ var zh = {
   "state.internal": "\u6700\u8FD1\u4EFB\u52A1\u5185\u90E8\u9519\u8BEF",
   "guide.title": "\u4E0D\u6307\u5B9A\u5DE5\u4F5C\u533A\u5373\u53EF\u5F00\u59CB\u5BF9\u8BDD",
   "guide.dismiss": "\u77E5\u9053\u4E86",
+  "collapse.workspaces": "\u6536\u8D77\u5DE5\u4F5C\u533A\u5217\u8868",
+  "expand.workspaces": "\u5C55\u5F00\u5DE5\u4F5C\u533A\u5217\u8868",
   retry: "\u91CD\u8BD5",
   "err.hostFail": "\u6700\u8FD1\u4EFB\u52A1 Host \u8BF7\u6C42\u5931\u8D25 ({0})",
   "err.startFailed": "\u65E0\u6CD5\u6253\u5F00\u6700\u8FD1\u4EFB\u52A1\u5BF9\u8BDD\uFF1A{0}"
@@ -119,6 +121,8 @@ var en = {
   "state.internal": "Recent-tasks internal error",
   "guide.title": "Start a chat without a workspace",
   "guide.dismiss": "Got it",
+  "collapse.workspaces": "Collapse the workspaces list",
+  "expand.workspaces": "Expand the workspaces list",
   retry: "Retry",
   "err.hostFail": "Recent-tasks host request failed ({0})",
   "err.startFailed": "Could not open a recent-tasks chat: {0}"
@@ -273,6 +277,36 @@ function writeGuideSeen(storage) {
   } catch {
   }
 }
+var WORKSPACES_COLLAPSED_KEY = "dsh.recent-tasks.workspaces-collapsed.v1";
+function readWorkspacesCollapsed(storage) {
+  if (!storage) return false;
+  try {
+    return storage.getItem(WORKSPACES_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeWorkspacesCollapsed(storage, collapsed) {
+  try {
+    storage?.setItem(WORKSPACES_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+  }
+}
+var ADAPTER = Object.freeze({
+  rowAttr: "data-dsh-rt-row",
+  blockAttr: "data-dsh-rt-block",
+  listAttr: "data-dsh-rt-list",
+  subAttr: "data-dsh-rt-sub",
+  overflowAttr: "data-dsh-rt-overflow",
+  rowValue: "recent",
+  collapsedHtmlClass: "dsh-recent-tasks-workspaces-collapsed",
+  collapseButtonClass: "dsh-recent-tasks-collapse"
+});
+var PROMOTE_INDENT = "0px";
+function shouldPromoteSection(witness) {
+  if (!witness || typeof witness !== "object") return false;
+  return witness.rowFound === true && witness.indent === PROMOTE_INDENT && witness.listFound === true && witness.headerFound === true;
+}
 function creationBlock(snapshot) {
   if (!snapshot || snapshot.phase !== Phase.ready) {
     return { code: snapshot?.code ?? CODES.unavailable, messageKey: snapshot?.code ? null : "state.notReady" };
@@ -415,6 +449,259 @@ function createRecentTasksController({ request, logger: logger2 = console }) {
   return { store, refresh, ensure, setFlash, dismissRepairNotice, setBusy };
 }
 
+// src/client-adapter.js
+var CHEVRON_SVG = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="M3 1.4 7.6 5 3 8.6z" fill="currentColor"/></svg>';
+function attrValue(value) {
+  return String(value).replace(/(["\\])/g, "\\$1");
+}
+function createSectionAdapter({
+  controller,
+  t,
+  storage,
+  logger: logger2,
+  doc = globalThis.document,
+  win = globalThis.window
+}) {
+  let observer = null;
+  let scheduled = null;
+  let unsubscribe = null;
+  let button = null;
+  let tagged = /* @__PURE__ */ new Map();
+  const raf = typeof win?.requestAnimationFrame === "function" ? { set: (fn) => win.requestAnimationFrame(fn), clear: (id) => win.cancelAnimationFrame?.(id) } : { set: (fn) => win?.setTimeout?.(fn, 16), clear: (id) => win?.clearTimeout?.(id) };
+  const attr = (node, name) => typeof node?.getAttribute === "function" ? node.getAttribute(name) : null;
+  const roleOf = (node) => attr(node, "role") ?? "";
+  const keyOf = (node) => attr(node, "data-row-key") ?? "";
+  const childrenOf = (node) => node?.children ? [...node.children] : [];
+  const hasSvg = (node) => childrenOf(node).some((child) => String(child?.tagName ?? "").toLowerCase() === "svg");
+  const isOurButton = (node) => node?.classList?.contains ? node.classList.contains(ADAPTER.collapseButtonClass) : node?.className === ADAPTER.collapseButtonClass;
+  function ancestorWithRole(node, role) {
+    let current = node;
+    while (current) {
+      if (roleOf(current) === role) return current;
+      current = current.parentElement ?? null;
+    }
+    return null;
+  }
+  function hasRowDescendant(node) {
+    for (const child of childrenOf(node)) {
+      if (keyOf(child)) return true;
+      if (hasRowDescendant(child)) return true;
+    }
+    return false;
+  }
+  function findRow(workspaceId) {
+    try {
+      return doc?.querySelector?.(`[data-row-key="workspace:${attrValue(workspaceId)}"]`) ?? null;
+    } catch {
+      return null;
+    }
+  }
+  function witness(workspaceId) {
+    const missing = { rowFound: false, indent: "", listFound: false, headerFound: false };
+    const row = findRow(workspaceId);
+    if (!row || roleOf(row) !== "treeitem") return missing;
+    const cells = childrenOf(row);
+    if (cells.length < 3 || !hasSvg(cells[0]) || !hasSvg(cells[1])) return missing;
+    const block = row.parentElement ?? null;
+    const list = ancestorWithRole(block, "tree");
+    if (!block || !list || block.parentElement !== list) return missing;
+    if (!childrenOf(list).some(
+      (group) => childrenOf(group).some((child) => keyOf(child).startsWith("workspace:"))
+    )) {
+      return missing;
+    }
+    const listArea = list.parentElement?.parentElement ?? null;
+    const root = listArea?.parentElement ?? null;
+    const header = root?.firstElementChild ?? null;
+    if (!header || header === listArea || hasRowDescendant(header)) return missing;
+    return {
+      rowFound: true,
+      indent: (block.style?.getPropertyValue?.("--dsh-workspace-indent") ?? "").trim(),
+      listFound: true,
+      headerFound: true,
+      row,
+      block,
+      list,
+      header
+    };
+  }
+  function putAttr(node, name, value) {
+    try {
+      if (attr(node, name) !== value) node.setAttribute(name, value);
+    } catch {
+    }
+  }
+  function removeAttr(node, name) {
+    try {
+      node.removeAttribute(name);
+    } catch {
+    }
+  }
+  function applyTags(desired) {
+    for (const [node, mine] of [...tagged]) {
+      const want = desired.get(node);
+      for (const name of mine.keys()) {
+        if (!want?.has(name)) removeAttr(node, name);
+      }
+    }
+    for (const [node, want] of desired) {
+      for (const [name, value] of want) putAttr(node, name, value);
+    }
+    tagged = new Map([...desired].map(([node, want]) => [node, new Map(want)]));
+  }
+  function untagAll() {
+    for (const [node, mine] of tagged) {
+      for (const name of mine.keys()) removeAttr(node, name);
+    }
+    tagged = /* @__PURE__ */ new Map();
+  }
+  function setCollapsedClass(collapsed) {
+    try {
+      const list = doc?.documentElement?.classList;
+      if (!list) return;
+      if (collapsed) list.add(ADAPTER.collapsedHtmlClass);
+      else list.remove(ADAPTER.collapsedHtmlClass);
+    } catch {
+    }
+  }
+  function supportsHideRule() {
+    try {
+      return typeof win?.CSS?.supports === "function" ? win.CSS.supports("selector(:has(*))") : false;
+    } catch {
+      return false;
+    }
+  }
+  function dropButton() {
+    try {
+      button?.remove?.();
+    } catch {
+    }
+    button = null;
+  }
+  function createButton() {
+    const node = doc.createElement("button");
+    node.className = ADAPTER.collapseButtonClass;
+    node.innerHTML = CHEVRON_SVG;
+    node.setAttribute("type", "button");
+    node.addEventListener("click", (event) => {
+      try {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        writeWorkspacesCollapsed(storage, !readWorkspacesCollapsed(storage));
+        run();
+      } catch (error) {
+        logger2.warn("the workspaces collapse toggle failed:", error);
+      }
+    });
+    return node;
+  }
+  function ensureButton(header, collapsed) {
+    const mine = childrenOf(header).filter(isOurButton);
+    for (const extra of mine.slice(1)) extra.remove?.();
+    let node = mine[0] ?? null;
+    if (!node) {
+      node = createButton();
+      if (typeof header.prepend === "function") header.prepend(node);
+      else header.insertBefore?.(node, header.firstChild ?? null);
+    }
+    const label = t(collapsed ? "expand.workspaces" : "collapse.workspaces");
+    for (const [name, value] of [
+      ["aria-expanded", collapsed ? "false" : "true"],
+      ["aria-label", label],
+      ["title", label],
+      ["data-collapsed", collapsed ? "true" : "false"]
+    ]) {
+      putAttr(node, name, value);
+    }
+    button = node;
+    return node;
+  }
+  function wanted({ row, block, list }) {
+    const desired = /* @__PURE__ */ new Map();
+    desired.set(row, /* @__PURE__ */ new Map([[ADAPTER.rowAttr, ADAPTER.rowValue]]));
+    desired.set(block, /* @__PURE__ */ new Map([[ADAPTER.blockAttr, ADAPTER.rowValue]]));
+    desired.set(list, /* @__PURE__ */ new Map([[ADAPTER.listAttr, ""]]));
+    for (const child of childrenOf(block)) {
+      const key = keyOf(child);
+      if (key.startsWith("session:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.subAttr, ""]]));
+      else if (key.startsWith("overflow:")) desired.set(child, /* @__PURE__ */ new Map([[ADAPTER.overflowAttr, ""]]));
+    }
+    return desired;
+  }
+  function watch() {
+    if (observer || typeof win?.MutationObserver !== "function") return;
+    const scope = doc?.body ?? doc?.documentElement ?? null;
+    if (!scope) return;
+    try {
+      observer = new win.MutationObserver(() => schedule());
+      observer.observe(scope, { childList: true, subtree: true });
+    } catch (error) {
+      observer = null;
+      logger2.warn("could not watch the sidebar for re-renders:", error);
+    }
+  }
+  function clear() {
+    dropButton();
+    setCollapsedClass(false);
+    untagAll();
+  }
+  function run() {
+    scheduled = null;
+    try {
+      const snapshot = controller.store.getSnapshot();
+      const workspaceId = snapshot?.value?.workspaceId ?? null;
+      if (snapshot?.phase !== Phase.ready || !workspaceId) return clear();
+      const found = witness(workspaceId);
+      if (!shouldPromoteSection(found)) return clear();
+      applyTags(wanted(found));
+      const collapsed = supportsHideRule() && readWorkspacesCollapsed(storage);
+      setCollapsedClass(collapsed);
+      if (supportsHideRule()) ensureButton(found.header, collapsed);
+      else dropButton();
+    } catch (error) {
+      logger2.warn("the sidebar section adapter stopped:", error);
+      clear();
+    }
+  }
+  function schedule() {
+    if (scheduled !== null) return;
+    try {
+      scheduled = raf.set(() => run());
+    } catch {
+      scheduled = null;
+    }
+  }
+  function stop() {
+    if (scheduled !== null) {
+      try {
+        raf.clear(scheduled);
+      } catch {
+      }
+      scheduled = null;
+    }
+    try {
+      unsubscribe?.();
+    } catch {
+    }
+    unsubscribe = null;
+    try {
+      observer?.disconnect();
+    } catch {
+    }
+    observer = null;
+    clear();
+  }
+  function start() {
+    watch();
+    run();
+    try {
+      unsubscribe = controller.store.subscribe(schedule);
+    } catch {
+    }
+  }
+  return { start, stop, run };
+}
+
 // src/client.js
 var REFRESH_MS = 3e4;
 var FLASH_MS = 6e3;
@@ -467,6 +754,26 @@ var CSS = `
 .dsh-recent-tasks-action:hover:enabled{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .dsh-recent-tasks-action:disabled{opacity:.5;cursor:default}
 .dsh-recent-tasks-switch{display:inline-flex;align-items:center;gap:8px;color:var(--dsw-alias-label-primary,#1f2329);font-size:13px;cursor:pointer}
+/* ---- Sidebar section promotion (spec 2026-10-20 \xA75) ----------------------
+   Keyed on attributes THIS plugin stamps on the official nodes, never on
+   official class names: those are build hashes that already changed once. Each
+   selector repeats its attribute so the plugin rule (0,2,0) outranks the
+   official module rule (0,1,0) whatever the injection order \u2014 by specificity,
+   never by an override flag.
+   The indent steps are 12px, the official tree step (spec \xA79-2). */
+.dsh-recent-tasks-collapse{display:inline-flex;flex:none;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary,#8f959e);cursor:pointer}
+.dsh-recent-tasks-collapse:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
+.dsh-recent-tasks-collapse:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#4d6bfe));outline-offset:-2px}
+.dsh-recent-tasks-collapse svg{transition:transform .15s ease-in-out}
+.dsh-recent-tasks-collapse[data-collapsed="true"] svg{transform:none}
+.dsh-recent-tasks-collapse[data-collapsed="false"] svg{transform:rotate(90deg)}
+[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
+[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}
+[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}
+[data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
+[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}
+[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}
+html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}
 `;
 function installStyles(ctx) {
   if (document.querySelector(`style[data-plugin-css="${STYLE_ID}"]`)) return;
@@ -676,6 +983,11 @@ var plugin = {
       request: (method, args) => callHost(method, args),
       logger
     });
+    const adapter = createSectionAdapter({ controller, t, storage: safeStorage(), logger });
+    ctx.effect(() => {
+      adapter.start();
+      return () => adapter.stop();
+    }, "dsh-recent-tasks: sidebar section adapter");
     let form = null;
     const formFacade = {
       subscribe: (listener) => form ? form.subscribe(listener) : () => {

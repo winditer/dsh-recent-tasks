@@ -103,7 +103,7 @@ export function writeWorkspacesCollapsed(storage, collapsed) {
  *
  * These are attributes on OFFICIAL nodes, so they are namespaced to this plugin
  * and never collide with anything official; the selectors in src/client.js
- * repeat them to outweigh the official module rules without `!important`.
+ * repeat them to outweigh the official module rules by specificity alone.
  */
 export const ADAPTER = Object.freeze({
   rowAttr: 'data-dsh-rt-row',

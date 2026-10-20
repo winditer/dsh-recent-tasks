@@ -250,6 +250,7 @@ function expectLabels() {
   return [
     'dsh-recent-tasks: dictionaries',
     'dsh-recent-tasks: styles',
+    'dsh-recent-tasks: sidebar section adapter',
     'dsh-recent-tasks: group title follows the state snapshot',
     'dsh-recent-tasks: group title follows the language',
     'dsh-recent-tasks: refresh loop',
@@ -447,4 +448,44 @@ test('apply registers the shortcut with non-conflicting defaults when available'
   assert.equal(blocked.reason, 'state.notReady');
   assert.equal(command.defaults['web:linux'], undefined);
   assert.equal(command.defaults['desktop:macos'].code, 'KeyN');
+});
+
+test('the artifact styles the promoted section without naming an official class', () => {
+  // Every selector below is keyed on an attribute THIS plugin puts on the node.
+  for (const rule of [
+    '[data-dsh-rt-row][data-dsh-rt-row]',
+    '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1)',
+    '[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2)',
+    '[data-dsh-rt-block][data-dsh-rt-block]',
+    '[data-dsh-rt-sub][data-dsh-rt-sub]',
+    '[data-dsh-rt-overflow][data-dsh-rt-overflow]',
+    'dsh-recent-tasks-workspaces-collapsed',
+    'dsh-recent-tasks-collapse',
+    'calc(8px + 12px + var(--dsh-workspace-indent,0px))',
+    'calc(28px + 12px + var(--dsh-workspace-indent,0px))',
+    ':has([data-dsh-rt-block])',
+  ]) {
+    assert.equal(bundle.includes(rule), true, `the artifact is missing ${rule}`);
+  }
+  assert.equal(bundle.includes('!important'), false, 'specificity, not !important');
+});
+
+test('no official class hash is hard-coded anywhere', () => {
+  // These prefixes changed between 0.2.0-rc.1 and 0.2.1-rc.2; a plugin that
+  // pinned one would break on the next DSH update.
+  const hashes = ['_7514NG_', 'jJkEga_', '_3WPZCG_', 'tztITa_', 'F6DNpa_', 'yuWXda_'];
+  const sources = [
+    'src/client.js',
+    'src/client-adapter.js',
+    'src/client-core.js',
+    'src/locales.js',
+    'src/host.js',
+    'src/protocol.js',
+  ].map((file) => readFileSync(resolve(ROOT, file), 'utf8'));
+  for (const hash of hashes) {
+    assert.equal(bundle.includes(hash), false, `the artifact names the official class ${hash}`);
+    for (const source of sources) {
+      assert.equal(source.includes(hash), false, `a source file names the official class ${hash}`);
+    }
+  }
 });

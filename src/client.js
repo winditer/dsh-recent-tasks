@@ -32,6 +32,7 @@
 //     plugin packages; local sources must be bundled in.
 import React from 'react';
 import { NS, zh, en } from './locales.js';
+import { createSectionAdapter } from './client-adapter.js';
 import {
   API_PREFIX,
   CODES,
@@ -109,6 +110,26 @@ const CSS = `
 .dsh-recent-tasks-action:hover:enabled{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .dsh-recent-tasks-action:disabled{opacity:.5;cursor:default}
 .dsh-recent-tasks-switch{display:inline-flex;align-items:center;gap:8px;color:var(--dsw-alias-label-primary,#1f2329);font-size:13px;cursor:pointer}
+/* ---- Sidebar section promotion (spec 2026-10-20 §5) ----------------------
+   Keyed on attributes THIS plugin stamps on the official nodes, never on
+   official class names: those are build hashes that already changed once. Each
+   selector repeats its attribute so the plugin rule (0,2,0) outranks the
+   official module rule (0,1,0) whatever the injection order — by specificity,
+   never by an override flag.
+   The indent steps are 12px, the official tree step (spec §9-2). */
+.dsh-recent-tasks-collapse{display:inline-flex;flex:none;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary,#8f959e);cursor:pointer}
+.dsh-recent-tasks-collapse:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
+.dsh-recent-tasks-collapse:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#4d6bfe));outline-offset:-2px}
+.dsh-recent-tasks-collapse svg{transition:transform .15s ease-in-out}
+.dsh-recent-tasks-collapse[data-collapsed="true"] svg{transform:none}
+.dsh-recent-tasks-collapse[data-collapsed="false"] svg{transform:rotate(90deg)}
+[data-dsh-rt-row][data-dsh-rt-row]{padding-inline-start:4px;height:36px;color:var(--dsw-alias-label-tertiary,#8f959e)}
+[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(1){display:none}
+[data-dsh-rt-row][data-dsh-rt-row]>span:nth-child(2){display:inline-flex}
+[data-dsh-rt-block][data-dsh-rt-block]{margin-top:12px}
+[data-dsh-rt-sub][data-dsh-rt-sub]{padding-inline-start:calc(8px + 12px + var(--dsh-workspace-indent,0px))}
+[data-dsh-rt-overflow][data-dsh-rt-overflow]{padding-left:calc(28px + 12px + var(--dsh-workspace-indent,0px))}
+html.dsh-recent-tasks-workspaces-collapsed [data-dsh-rt-list][data-dsh-rt-list]:has([data-dsh-rt-block])>div:not([data-dsh-rt-block]){display:none}
 `;
 
 /** Insert the one plugin stylesheet, tagged so the module loader can evict it. */
@@ -399,6 +420,17 @@ const plugin = {
       request: (method, args) => callHost(method, args),
       logger,
     });
+
+    // Sidebar section promotion (spec 2026-10-20): the managed group reads as a
+    // block-level section beside the official header, whose own heading gets a
+    // collapse toggle for the groups below it. Presentation only: it writes no
+    // state, calls no host method, and disables itself when the official DOM
+    // does not offer the anchors it needs.
+    const adapter = createSectionAdapter({ controller, t, storage: safeStorage(), logger });
+    ctx.effect(() => {
+      adapter.start();
+      return () => adapter.stop();
+    }, 'dsh-recent-tasks: sidebar section adapter');
 
     // The official live-config form for this plugin's settings namespace. The
     // facade keeps a stable identity (useSyncExternalStore needs that) while the
