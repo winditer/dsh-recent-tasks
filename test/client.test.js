@@ -8,16 +8,22 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  ADAPTER,
   GUIDE_KEY,
+  PROMOTE_INDENT,
   Phase,
   SHORTCUT_DEFAULTS,
+  WORKSPACES_COLLAPSED_KEY,
   createRecentTasksController,
   createSnapshotStore,
   planCreate,
   planTitleSync,
   readGuideSeen,
+  readWorkspacesCollapsed,
   shortcutResolution,
+  shouldPromoteSection,
   writeGuideSeen,
+  writeWorkspacesCollapsed,
 } from '../src/client-core.js';
 import { CODES, CODE_MESSAGE_KEYS, messageKeyForCode, readStateResponse } from '../src/protocol.js';
 import { AUTO_TITLES, GROUP_TITLES, NS, en, isAutoTitle, zh } from '../src/locales.js';
@@ -417,4 +423,60 @@ test('the client and host halves agree on the default folder and title', () => {
   assert.equal(loose.ok, true);
   assert.equal(loose.value.path, PATH);
   assert.equal(loose.value.dirExists, false);
+});
+
+// --------------------------------------------------------------------------
+// sidebar section promotion: the collapse flag (§5.4) and the witness (§5.1)
+// --------------------------------------------------------------------------
+
+test('the collapse flag round-trips, and anything odd reads as expanded', () => {
+  const storage = fakeStorage();
+  assert.equal(readWorkspacesCollapsed(storage), false, 'a missing flag means expanded');
+  writeWorkspacesCollapsed(storage, true);
+  assert.equal(storage.map.get(WORKSPACES_COLLAPSED_KEY), '1');
+  assert.equal(readWorkspacesCollapsed(storage), true);
+  writeWorkspacesCollapsed(storage, false);
+  assert.equal(readWorkspacesCollapsed(storage), false);
+
+  storage.setItem(WORKSPACES_COLLAPSED_KEY, 'yes');
+  assert.equal(readWorkspacesCollapsed(storage), false, 'an unparsable value must not hide the list');
+  assert.equal(readWorkspacesCollapsed(null), false, 'no storage at all means expanded');
+
+  const hostile = {
+    getItem() {
+      throw new Error('denied');
+    },
+    setItem() {
+      throw new Error('denied');
+    },
+  };
+  assert.equal(readWorkspacesCollapsed(hostile), false);
+  assert.doesNotThrow(() => writeWorkspacesCollapsed(hostile, true));
+});
+
+test('the promotion witness needs every anchor, and a root-level group', () => {
+  const good = { rowFound: true, indent: PROMOTE_INDENT, listFound: true, headerFound: true };
+  assert.equal(shouldPromoteSection(good), true);
+
+  // Single list / search results / rail: the group row is not rendered at all.
+  assert.equal(shouldPromoteSection({ ...good, rowFound: false }), false);
+  // A list we could not resolve, or a header we could not inject into.
+  assert.equal(shouldPromoteSection({ ...good, listFound: false }), false);
+  assert.equal(shouldPromoteSection({ ...good, headerFound: false }), false);
+  // Tree mode: the group is nested under another workspace, so it is NOT a peer.
+  assert.equal(shouldPromoteSection({ ...good, indent: '12px' }), false);
+  assert.equal(shouldPromoteSection({ ...good, indent: '' }), false);
+  assert.equal(shouldPromoteSection(undefined), false);
+});
+
+test('the adapter vocabulary is frozen and used verbatim by the stylesheet', () => {
+  assert.equal(Object.isFrozen(ADAPTER), true);
+  assert.equal(ADAPTER.rowAttr, 'data-dsh-rt-row');
+  assert.equal(ADAPTER.blockAttr, 'data-dsh-rt-block');
+  assert.equal(ADAPTER.listAttr, 'data-dsh-rt-list');
+  assert.equal(ADAPTER.subAttr, 'data-dsh-rt-sub');
+  assert.equal(ADAPTER.overflowAttr, 'data-dsh-rt-overflow');
+  assert.equal(ADAPTER.rowValue, 'recent');
+  assert.equal(ADAPTER.collapsedHtmlClass, 'dsh-recent-tasks-workspaces-collapsed');
+  assert.equal(ADAPTER.collapseButtonClass, 'dsh-recent-tasks-collapse');
 });

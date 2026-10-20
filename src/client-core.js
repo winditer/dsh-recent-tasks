@@ -70,6 +70,75 @@ export function writeGuideSeen(storage) {
   }
 }
 
+/** Browser-local flag: the plugin's own collapse state for the workspace blocks. */
+export const WORKSPACES_COLLAPSED_KEY = 'dsh.recent-tasks.workspaces-collapsed.v1';
+
+/**
+ * Read the collapse flag.
+ *
+ * Missing, unparsable or blocked storage reads as expanded: hiding the whole
+ * workspace list because storage misbehaved would be worse than forgetting one
+ * click.
+ */
+export function readWorkspacesCollapsed(storage) {
+  if (!storage) return false;
+  try {
+    return storage.getItem(WORKSPACES_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the collapse flag. Cosmetic state only, so failures stay silent. */
+export function writeWorkspacesCollapsed(storage, collapsed) {
+  try {
+    storage?.setItem(WORKSPACES_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch {
+    /* private mode / storage disabled: the toggle still works for this session */
+  }
+}
+
+/**
+ * The vocabulary the sidebar section adapter speaks (spec §5.3).
+ *
+ * These are attributes on OFFICIAL nodes, so they are namespaced to this plugin
+ * and never collide with anything official; the selectors in src/client.js
+ * repeat them to outweigh the official module rules without `!important`.
+ */
+export const ADAPTER = Object.freeze({
+  rowAttr: 'data-dsh-rt-row',
+  blockAttr: 'data-dsh-rt-block',
+  listAttr: 'data-dsh-rt-list',
+  subAttr: 'data-dsh-rt-sub',
+  overflowAttr: 'data-dsh-rt-overflow',
+  rowValue: 'recent',
+  collapsedHtmlClass: 'dsh-recent-tasks-workspaces-collapsed',
+  collapseButtonClass: 'dsh-recent-tasks-collapse',
+});
+
+/** The inline indent a ROOT-level group carries (`depth * 12px`, depth 0). */
+export const PROMOTE_INDENT = '0px';
+
+/**
+ * May the adapter touch the official DOM? (spec §5.1, §5.2)
+ *
+ * `witness` is what src/client-adapter.js found: the group row itself, the
+ * group standing at the root of the tree, the row's list, and the section
+ * header the collapse toggle is injected into. Every one of them has to be
+ * there — anything else (single list, search results, the 56px rail, a group
+ * nested in tree mode, a DSH upgrade that moved the anchors) means "hands off",
+ * and the sidebar simply stays official.
+ */
+export function shouldPromoteSection(witness) {
+  if (!witness || typeof witness !== 'object') return false;
+  return (
+    witness.rowFound === true &&
+    witness.indent === PROMOTE_INDENT &&
+    witness.listFound === true &&
+    witness.headerFound === true
+  );
+}
+
 /**
  * The failure that stops the action outright, or `null` when it may proceed.
  *
