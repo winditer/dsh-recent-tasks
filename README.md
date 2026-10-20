@@ -7,24 +7,24 @@ English | [中文](README.zh.md)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.19-339933.svg)](package.json)
 [![DSH](https://img.shields.io/badge/DSH-0.2.0--rc.1%2B-4D6BFE.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
-An always-last, collapsible **「最近任务」/ Recent tasks** workspace group in the DeepSeek Harness sidebar. Chats that have no workspace land there instead of piling up in **未分组** — and because the group is a *real* workspace record rather than a look-alike drawn by a plugin, a chat started from it genuinely belongs to it.
+A collapsible **「最近任务」/ Recent tasks** block at the section level of the DeepSeek Harness sidebar. Chats that have no workspace land there instead of piling up in **未分组** — and because the block is a *real* workspace record rather than a look-alike drawn by a plugin, a chat started from it genuinely belongs to it.
 
-DSH groups every chat under the workspace its session `cwd` resolves to. A chat started without a workspace gets no group at all, so it falls into the `未分组` bucket together with archived folders and deleted projects. This plugin registers **one real workspace record** for a dedicated folder and keeps it at the end of the workspace list: "no workspace" becomes an ordinary group with ordinary behaviour — collapse, expand, rename, drag order, pin, archive, search.
+DSH groups every chat under the workspace its session `cwd` resolves to. A chat started without a workspace gets no group at all, so it falls into the `未分组` bucket together with archived folders and deleted projects. This plugin registers **one real workspace record** for a dedicated folder: "no workspace" becomes an ordinary group with ordinary behaviour — rename, drag order, pin, archive, search — and that group is *promoted* into a collapsible block of its own, level with **工作区** and collapsing independently of it.
 
 | Piece | What it is |
 |---|---|
-| Group | A genuine `workspace` record for `<recentTasksDir>`, registered through `ctx.workspaceRegistry` and re-pinned to the end of the durable order |
+| Group | A genuine `workspace` record for `<recentTasksDir>`, registered through `ctx.workspaceRegistry` and created as the last group; the plugin never rewrites the durable order afterwards, so where you drag it is where it stays |
 | Entry | `＋ 最近任务对话` beside Settings at the sidebar foot, plus the `Mod+Alt+N` / `Mod+Shift+N` shortcut — both start a session in that workspace |
-| Settings | `最近任务` rows inside **Settings → General** — folder, group name, pin-last, auto-repair — backed by this plugin's official live config |
+| Settings | `最近任务` rows inside **Settings → General** — folder, group name, auto-repair — backed by this plugin's official live config |
 | Host API | `POST /dsh-recent-tasks/api/state` and `/ensure`, read-only and idempotent; the only write path is the official settings form |
 
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshot-1-recent-tasks-group.webp" width="618" height="582" alt="Screenshot — the 最近任务 group at the bottom of the DSH sidebar, listing the chats that have no workspace">
+  <img src="assets/screenshot-1-recent-tasks-group.webp" width="618" height="582" alt="Screenshot — the 最近任务 block in the DSH sidebar, listing the chats that have no workspace">
 </p>
 
-The group sits at the end of the workspace list and behaves like any other: `GPT-6 特点介绍` is the chat that is running right now, older ones show how long ago they were used, and `＋ 最近任务对话` at the sidebar foot starts a new chat in that folder.
+The block behaves like any other group: `GPT-6 特点介绍` is the chat that is running right now, older ones show how long ago they were used, and `＋ 最近任务对话` at the sidebar foot starts a new chat in that folder. (This capture predates the promotion to a section-level block; the section below describes how the list reads now.)
 
 ## Why a real workspace record
 
@@ -38,7 +38,7 @@ The alternative — a plugin-drawn group — cannot work: the sidebar's groups *
 
 `最近任务` reads as a block-level section beside the official workspaces heading, and the two collapse independently: the arrow in front of "Workspaces" hides the *other* workspace groups (Recent tasks stays), while the arrow in front of "Recent tasks" collapses its own chats, which sit one indent step in from its title.
 
-- This is presentation only: the group is still one real workspace record pinned last — no official code is patched and no workspace data is rewritten.
+- This is presentation only: the group is still one real workspace record, and the plugin writes no workspace data — it neither reorders the list nor touches any group but its own.
 - It keys on official *stable* attributes (`data-row-key`, `role`, the inline `--dsh-workspace-indent`) and never on official class names, which are build hashes that change between releases. If a DSH update moves those anchors the promotion **disables itself**: the sidebar falls back to the stock look with nothing left behind, one line in the console.
 - It also stands down for the flat list, while searching, in the 56px rail, and in tree mode when the folder is nested under another workspace (then it is not a peer). Switching back re-applies it immediately.
 - Known trade-offs: the block scrolls with the workspace list; while "Workspaces" is collapsed the highlight of a chat inside a hidden group is not visible until you expand it again; and on the single frame in which the official UI re-renders the container (before our replay runs) a collapsed group can flash back into view.
@@ -86,7 +86,7 @@ The built browser half (`dist/client.js`) is **committed** on purpose. A `github
 Every release attaches the packed package, so the whole repository is not downloaded and nothing is compiled on the consuming side:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.2.0/dsh-recent-tasks-0.2.0.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.2.1/dsh-recent-tasks-0.2.1.tgz
 ```
 
 The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.
