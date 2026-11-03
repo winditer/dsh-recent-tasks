@@ -23,7 +23,7 @@ import { API_PREFIX, CODES } from '../src/protocol.js';
 const HOME = '/home/tester';
 
 /** A stand-in for `ctx.workspaceRegistry` with the same observable contract. */
-function fakeRegistry({ failCreate = null, failMkdir = null, dirIsDirectory = true } = {}) {
+function fakeRegistry({ failCreate = null, failMkdir = null, failReorder = null, dirIsDirectory = true } = {}) {
   const records = new Map();
   const order = [];
   const calls = { create: 0, resolveByPath: 0, insertBefore: 0, mkdir: 0 };
@@ -35,6 +35,13 @@ function fakeRegistry({ failCreate = null, failMkdir = null, dirIsDirectory = tr
     records,
     order,
     madeDirs,
+    /** A workspace the user registered before this plugin existed. */
+    seed(path, title = path) {
+      const id = `seed${++seq}`;
+      records.set(id, { id, path, title, sessionIds: [], createdAt: '2025-12-01T00:00:00.000Z' });
+      order.unshift(id); // the real registry PREPENDS every create
+      return id;
+    },
     deleteRecord(id) {
       records.delete(id);
       const at = order.indexOf(id);
@@ -60,6 +67,7 @@ function fakeRegistry({ failCreate = null, failMkdir = null, dirIsDirectory = tr
     },
     async insertBefore(id, beforeId) {
       calls.insertBefore += 1;
+      if (failReorder) throw failReorder;
       const at = order.indexOf(id);
       if (at >= 0) order.splice(at, 1);
       if (beforeId === undefined) order.push(id);
@@ -158,7 +166,7 @@ test('isUnder is strict and separator aware', () => {
 // ensure / state
 // --------------------------------------------------------------------------
 
-test('ensure creates the directory and registers the record, without reordering', async () => {
+test('ensure creates the directory, registers the record, and appends it once', async () => {
   const { service, registry } = makeService({ config: { recentTasksDir: '~/Recents' } });
   const result = await service.ensure();
   assert.equal(result.ok, true);
@@ -170,16 +178,74 @@ test('ensure creates the directory and registers the record, without reordering'
   assert.equal(result.value.dirExists, true);
   assert.equal(registry.calls.mkdir, 1);
   assert.equal(registry.calls.create, 1);
-  // The group's place is whatever `create()` appended. This plugin never writes
-  // workspace order: the former "always keep it at the end" reorder is gone.
-  assert.equal(registry.calls.insertBefore, 0, 'the plugin must not reorder workspaces');
+  // `create()` PREPENDS, so the plugin asks for the end exactly once — on the
+  // creation — and never again. There is no "always last" switch any more: a
+  // record that already exists keeps the place it was dragged to.
+  assert.equal(registry.calls.insertBefore, 1, 'a newly created record is moved to the end once');
+  assert.deepEqual(registry.order, ['w1']);
   assert.equal('pinLast' in result.value, false, 'the state payload has no pinLast');
 
   const again = await service.ensure();
   assert.equal(again.value.workspaceId, 'w1', 'ensure is idempotent');
   assert.equal(again.value.reusedExisting, true);
   assert.equal(registry.calls.create, 1, 'no duplicate record');
-  assert.equal(registry.calls.insertBefore, 0, 'still no reorder');
+  assert.equal(registry.calls.insertBefore, 1, 'a record that already exists is never re-ordered');
+});
+
+test('a fresh install lands below the workspaces the user already had', async () => {
+  // The reported bug: `create()` prepends, so an unguarded registration put the
+  // 最近任务 block above every existing workspace, newest-first order included.
+  const registry = fakeRegistry();
+  const older = registry.seed('/Users/me/Documents/alpha', 'alpha');
+  const newer = registry.seed('/Users/me/Documents/beta', 'beta');
+  assert.deepEqual(registry.order, [newer, older], 'the fake mirrors the real newest-first order');
+
+  const { service } = makeService({ registry, config: { recentTasksDir: '~/Recents' } });
+  const result = await service.ensure();
+  assert.equal(result.ok, true);
+
+  assert.deepEqual(registry.order, [newer, older, result.value.workspaceId], 'the new block goes last');
+  assert.equal(registry.order.at(-1), result.value.workspaceId);
+});
+
+test('a record the user dragged elsewhere is left where it was dropped', async () => {
+  const registry = fakeRegistry();
+  const first = registry.seed('/Users/me/one');
+  const { service } = makeService({ registry, config: { recentTasksDir: '~/Recents' } });
+  const created = await service.ensure();
+  assert.deepEqual(registry.order, [first, created.value.workspaceId]);
+
+  // The user drags the 最近任务 group above the other workspace, then runs a
+  // chat (which re-ensures): the plugin must not yank it back.
+  await registry.insertBefore(created.value.workspaceId, first);
+  registry.calls.insertBefore = 0;
+  assert.deepEqual(registry.order, [created.value.workspaceId, first]);
+
+  await service.ensure();
+  assert.equal(registry.calls.insertBefore, 0, 'no reorder for an existing record');
+  assert.deepEqual(registry.order, [created.value.workspaceId, first], 'the drag survives');
+});
+
+test('a failed reorder keeps the group instead of failing the ensure', async () => {
+  const registry = fakeRegistry({ failReorder: new Error('registry busy') });
+  const { service } = makeService({ registry, config: { recentTasksDir: '~/Recents' } });
+  const result = await service.ensure();
+  assert.equal(result.ok, true, 'a cosmetic reorder never fails the ensure');
+  assert.equal(result.value.workspaceId, 'w1');
+  assert.equal(registry.calls.insertBefore, 1);
+});
+
+test('a repaired record is appended again after the user deleted it', async () => {
+  const registry = fakeRegistry();
+  const other = registry.seed('/Users/me/other');
+  const { service } = makeService({ registry, config: { recentTasksDir: '~/Recents' } });
+  const first = await service.ensure();
+  assert.deepEqual(registry.order, [other, first.value.workspaceId]);
+
+  registry.deleteRecord(first.value.workspaceId);
+  const rebuilt = await service.ensure();
+  assert.equal(rebuilt.value.repaired, true);
+  assert.deepEqual(registry.order, [other, rebuilt.value.workspaceId], 'the rebuilt group is last again');
 });
 
 test('ensure reports coded failures instead of throwing', async () => {

@@ -1,8 +1,9 @@
 // dsh-recent-tasks — Host half (`exports["."]` of the package).
 //
 // The plugin's whole job on this side is: keep ONE real workspace record alive
-// for the configured "recent tasks" folder, keep it at the end of the durable
-// workspace order, and answer a tiny HTTP API for the client half.
+// for the configured "recent tasks" folder, put it at the end of the durable
+// workspace order when it creates it, and answer a tiny HTTP API for the client
+// half.
 //
 // Why a real workspace record (route A of the design): the sidebar's grouping is
 // the `workspace` storage domain — `ctx.workspaceRegistry` — and no plugin slot
@@ -22,8 +23,11 @@
 // Facts this file depends on (verified against 0.2.0-rc.1):
 //   * `workspaceRegistry.create(path, title)` realpaths, REQUIRES an existing
 //     directory, is idempotent per canonical path, never rewrites an existing
-//     title, and PREPENDS a new record; `resolveByPath`, `get`, `list` are the
-//     read side; `insertBefore(id)` with no anchor appends.
+//     title, and PREPENDS a new record — never appends, so "the last group"
+//     only happens if we ask for it; `resolveByPath`, `get`, `list` are the
+//     read side; `insertBefore(id)` with no anchor appends. The sidebar renders
+//     the list in exactly that durable order (ui-workspace: "real Workspaces in
+//     Host group order"), which is why the prepend is user-visible.
 //   * `webServer.register({ kind:'prefix', path, handler })` is synchronous,
 //     returns a disposer, throws on a duplicate path, and matches the prefix
 //     itself plus `prefix + '/'` subpaths.
@@ -290,11 +294,21 @@ export function createRecentTasks({ registry, fs = {}, logger, config, random })
     }
     if (!record || !record.id) return fail(CODES.internal, 'workspace registry returned no record');
 
-    // No reorder here. The group is appended by `create()` and that is all this
-    // plugin guarantees: a former "always keep it at the end" switch only ever
-    // ran inside `ensure`, so toggling it changed nothing a user could see
-    // (state polling never reordered), and it was removed as dead weight. A group
-    // the user drags elsewhere now simply stays where it was dropped.
+    // `create()` PREPENDS, so without this the block of a freshly installed
+    // plugin lands above every workspace the user already owns (0.3.0 shipped
+    // exactly that). Move a record we just created to the end — once. A record
+    // that was already registered keeps whatever place it has, including the one
+    // the user dragged it to; re-appending on every `ensure` (the removed
+    // `pinLast` switch) undid that drag on the next chat.
+    if (!reusedExisting) {
+      try {
+        await registry.insertBefore(record.id);
+      } catch (error) {
+        // A failed reorder must never fail the ensure: the group exists, and its
+        // position is cosmetic.
+        logger?.warn?.(`dsh-recent-tasks: cannot move the group to the end: ${String(error)}`);
+      }
+    }
 
     // An id that changed (delete + recreate) means the old sessions stayed
     // behind under "未分组" — surface that exactly once.
