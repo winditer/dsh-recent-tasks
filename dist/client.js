@@ -60,7 +60,7 @@ var zh = {
   "settings.autoRepair": "\u5206\u7EC4\u88AB\u5220\u9664\u540E\u81EA\u52A8\u91CD\u5EFA",
   "settings.saved": "\u6700\u8FD1\u4EFB\u52A1\u8BBE\u7F6E\u5DF2\u4FDD\u5B58",
   "settings.saveFailed": "\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
-  "settings.hint": "\u8FD9\u4E9B\u9009\u9879\u5C31\u662F\u672C\u63D2\u4EF6\u7684\u5B98\u65B9\u8BBE\u7F6E\u9879\uFF08\u8BBE\u7F6E \u2192 \u63D2\u4EF6 \u2192 dsh-recent-tasks \u540C\u4E00\u4EFD\u8868\u5355\uFF09\uFF1B\u4FEE\u6539\u4F1A\u5199\u5165\u5F53\u524D profile \u7684 cordis.patch.yml \u5E76\u5373\u65F6\u751F\u6548\u3002",
+  "settings.hint": "\u8FD9\u4E09\u9879\u5C31\u662F\u672C\u63D2\u4EF6\u7684\u5B98\u65B9\u8BBE\u7F6E\u9879\uFF0C\u4FEE\u6539\u4F1A\u5199\u5165\u5F53\u524D profile \u7684 cordis.patch.yml \u5E76\u5373\u65F6\u751F\u6548\u3002",
   "settings.nestedWarning": "\u8BE5\u76EE\u5F55\u4F4D\u4E8E\u5DE5\u4F5C\u533A\u300C{0}\u300D\u4E4B\u4E0B\uFF0C\u5206\u7EC4\u4F1A\u4F5C\u4E3A\u5B50\u7EA7\u5D4C\u5957\u663E\u793A\uFF1B\u5EFA\u8BAE\u6539\u5230\u5DE5\u4F5C\u533A\u4E4B\u5916\u7684\u76EE\u5F55\u3002",
   "settings.alreadyWorkspace": "\u8BE5\u76EE\u5F55\u5DF2\u7ECF\u662F\u5DE5\u4F5C\u533A\u300C{0}\u300D\uFF0C\u5C06\u590D\u7528\u8BE5\u5206\u7EC4\uFF08\u4E0D\u4F1A\u6539\u540D\uFF09\u3002",
   "settings.pickFailed": "\u672A\u80FD\u9009\u62E9\u76EE\u5F55\uFF1A{0}",
@@ -98,7 +98,7 @@ var en = {
   "settings.autoRepair": "Recreate the group if it is deleted",
   "settings.saved": "Recent-tasks settings saved",
   "settings.saveFailed": "Could not save: {0}",
-  "settings.hint": "These are this plugin's official settings (the same form as Settings \u2192 Plugins \u2192 dsh-recent-tasks); changes are written to the active profile's cordis.patch.yml and apply immediately.",
+  "settings.hint": "These three are this plugin's official settings; changes are written to the active profile's cordis.patch.yml and apply immediately.",
   "settings.nestedWarning": 'This folder sits inside workspace "{0}", so the group will render nested beneath it; prefer a folder outside every workspace.',
   "settings.alreadyWorkspace": 'That folder is already workspace "{0}"; the existing group is reused (never renamed).',
   "settings.pickFailed": "Could not pick a folder: {0}",
@@ -773,6 +773,9 @@ var CSS = `
 .dsh-recent-tasks-toast{position:fixed;left:16px;bottom:96px;z-index:40;max-width:320px;padding:8px 12px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#1f2329);box-shadow:0 6px 24px rgba(0,0,0,.16);font-size:12px;line-height:18px}
 .dsh-recent-tasks-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2,rgba(0,0,0,.08))}
 .dsh-recent-tasks-row:last-child{border-bottom:none}
+/* The plugins-page tab panel: a plain column, capped like the neighbouring
+   sections so the three rows read at the same measure on a wide window. */
+.dsh-recent-tasks-panel{display:flex;flex-direction:column;gap:8px;max-width:760px;min-width:0}
 .dsh-recent-tasks-main{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
 .dsh-recent-tasks-title{color:var(--dsw-alias-label-primary,#1f2329);font-size:14px;line-height:22px}
 .dsh-recent-tasks-desc{color:var(--dsw-alias-label-secondary,#646a73);font-size:12px;line-height:18px;overflow-wrap:anywhere}
@@ -903,7 +906,7 @@ function NewRecentTaskButton({ wide, t, controller, create }) {
 function SettingsRow({ title, children, control }) {
   return /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-row" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-main" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-title" }, title), children), /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-controls" }, control));
 }
-function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
+function RecentTasksTab({ t, controller, pickDirectory, form }) {
   const snapshot = useController(controller);
   const value = snapshot.value;
   const config = useForm(form);
@@ -939,14 +942,14 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
     }
   }, [form, t]);
   if (!ready) {
-    return /* @__PURE__ */ import_react.default.createElement(
+    return /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-panel" }, /* @__PURE__ */ import_react.default.createElement(
       SettingsRow,
       {
         title: t("settings.title"),
         control: /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "dsh-recent-tasks-action", onClick: () => controller.refresh() }, t("retry"))
       },
       /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-warn", role: "alert" }, t(reasonKey(snapshot)))
-    );
+    ));
   }
   const onChangeDir = async () => {
     try {
@@ -962,7 +965,7 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
     if (!next || next === (live?.title ?? "")) return;
     save("title", next);
   };
-  return /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement(
+  return /* @__PURE__ */ import_react.default.createElement("div", { className: "dsh-recent-tasks-panel" }, /* @__PURE__ */ import_react.default.createElement(
     SettingsRow,
     {
       title: t("settings.title"),
@@ -1144,17 +1147,17 @@ var plugin = {
       locale: NS,
       inject: () => ({ controller, create })
     }, NewRecentTaskButton));
-    ctx.slots.inject("settings.general.item", () => ctx.slots.register({
-      name: "settings.general.item",
+    ctx.slots.inject("plugins.tab", () => ctx.slots.register({
+      name: "plugins.tab",
       id: "recent-tasks",
-      order: 30,
+      label: () => t("settings.title"),
       locale: NS,
       inject: () => ({
         controller,
         form: formFacade,
         pickDirectory: () => ctx.uiWorkspace.pickDirectory()
       })
-    }, RecentTasksSettingsRow));
+    }, RecentTasksTab));
     ctx.inject(["configForms"], (scope) => {
       form = scope.configForms.get(SETTINGS_NAMESPACE);
       scope.effect(() => () => {

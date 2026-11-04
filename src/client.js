@@ -8,10 +8,11 @@
 //      a blank session in the managed workspace — the only entry a plugin can add
 //      without rewriting the sidebar.
 //   2. shortcut `recentTasks.new` (via `ctx.shortcuts.register`, optional service).
-//   3. `settings.general.item` (list, root): the storage folder / group name /
-//      pin-last / auto-repair row. The values it edits are the OFFICIAL live
-//      config (`configForms.get('recent-tasks')`), so the same form also shows
-//      up under Settings -> Plugins and persists in the profile's patch.
+//   3. `plugins.tab` (list, root): the 「最近任务」 tab of Settings -> Plugins,
+//      holding the storage folder / group name / auto-repair settings. The
+//      values are the OFFICIAL live config (`configForms.get('recent-tasks')`)
+//      and persist in the profile's patch. Since spec 2026-11-04 this is the
+//      only place they are edited — the plugin adds no General-settings row.
 //   4. no slot at all: it keeps the managed group's STORED title in step with the
 //      UI language. Both label surfaces render the durable Workspace title
 //      verbatim, so the plugin renames its own record through the official
@@ -24,7 +25,8 @@
 //     mandatory for slots declared by other packages; `spec.inject` returns the
 //     props the component receives (`hooks: {...}` entries become `use<Name>`),
 //     and `locale: NS` gives the component a stable `t`.
-//   * `sidebar.footer.action` renders `{ wide }`; `settings.general.item` renders `{}`.
+//   * `sidebar.footer.action` renders `{ wide }`; `plugins.tab` renders inside
+//     the plugin page's tab panel and receives `{ install, openPackage }`.
 //   * `ctx.shortcuts.register` THROWS on a duplicate id, a reserved default, or a
 //     default that overlaps another command on ANY runtime/platform — so the
 //     registration is guarded and degrades to the button.
@@ -98,6 +100,9 @@ const CSS = `
 .dsh-recent-tasks-toast{position:fixed;left:16px;bottom:96px;z-index:40;max-width:320px;padding:8px 12px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#1f2329);box-shadow:0 6px 24px rgba(0,0,0,.16);font-size:12px;line-height:18px}
 .dsh-recent-tasks-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2,rgba(0,0,0,.08))}
 .dsh-recent-tasks-row:last-child{border-bottom:none}
+/* The plugins-page tab panel: a plain column, capped like the neighbouring
+   sections so the three rows read at the same measure on a wide window. */
+.dsh-recent-tasks-panel{display:flex;flex-direction:column;gap:8px;max-width:760px;min-width:0}
 .dsh-recent-tasks-main{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
 .dsh-recent-tasks-title{color:var(--dsw-alias-label-primary,#1f2329);font-size:14px;line-height:22px}
 .dsh-recent-tasks-desc{color:var(--dsw-alias-label-secondary,#646a73);font-size:12px;line-height:18px;overflow-wrap:anywhere}
@@ -267,20 +272,22 @@ function SettingsRow({ title, children, control }) {
 }
 
 /**
- * `settings.general.item` entry: storage folder, group name, pin-last and
- * auto-repair.
+ * `plugins.tab` entry — the 「最近任务」 tab of Settings -> Plugins: storage
+ * folder, group name and auto-repair.
  *
  * The values are the OFFICIAL live config (design §8.6 route A): the host half
  * declares them `.volatile()`, `dsh-settings` serves them under this plugin's row
  * id, and the writes below go through the official `configForms` transport —
  * which persists into the active profile's cordis.patch.yml and hot-applies to
- * the running host. The same form is also reachable from Settings -> Plugins.
+ * the running host. This tab IS that form's home: the plugin registers no
+ * General-settings row (spec 2026-11-04), so there is exactly one place to edit
+ * these values.
  *
  * The path/title/warnings shown here come from our own state snapshot, which
  * knows the CANONICAL path and the two situations the official form cannot
  * report (a pre-existing workspace record, a folder nested under one).
  */
-function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
+function RecentTasksTab({ t, controller, pickDirectory, form }) {
   const snapshot = useController(controller);
   const value = snapshot.value;
   const config = useForm(form);
@@ -324,16 +331,18 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
 
   if (!ready) {
     return (
-      <SettingsRow
-        title={t('settings.title')}
-        control={
-          <button type="button" className="dsh-recent-tasks-action" onClick={() => controller.refresh()}>
-            {t('retry')}
-          </button>
-        }
-      >
-        <div className="dsh-recent-tasks-warn" role="alert">{t(reasonKey(snapshot))}</div>
-      </SettingsRow>
+      <div className="dsh-recent-tasks-panel">
+        <SettingsRow
+          title={t('settings.title')}
+          control={
+            <button type="button" className="dsh-recent-tasks-action" onClick={() => controller.refresh()}>
+              {t('retry')}
+            </button>
+          }
+        >
+          <div className="dsh-recent-tasks-warn" role="alert">{t(reasonKey(snapshot))}</div>
+        </SettingsRow>
+      </div>
     );
   }
 
@@ -354,7 +363,7 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
   };
 
   return (
-    <React.Fragment>
+    <div className="dsh-recent-tasks-panel">
       <SettingsRow
         title={t('settings.title')}
         control={
@@ -417,7 +426,7 @@ function RecentTasksSettingsRow({ t, controller, pickDirectory, form }) {
       {snapshot.code ? (
         <div className="dsh-recent-tasks-status" role="alert">{t(messageKeyForCode(snapshot.code))}</div>
       ) : null}
-    </React.Fragment>
+    </div>
   );
 }
 
@@ -608,17 +617,22 @@ const plugin = {
       inject: () => ({ controller, create }),
     }, NewRecentTaskButton));
 
-    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-      name: 'settings.general.item',
+    // The plugin page's own tab (spec 2026-11-04): `plugins.tab` is declared by
+    // the plugin manager, so registering into it goes through `slots.inject`.
+    // The page renders its tabs in REGISTRATION order (it does not re-sort by
+    // `order`), and a bundle loads after the composition's own pages, so this
+    // tab lands after 已安装 / 发现 without asking for a position.
+    ctx.slots.inject('plugins.tab', () => ctx.slots.register({
+      name: 'plugins.tab',
       id: 'recent-tasks',
-      order: 30,
+      label: () => t('settings.title'),
       locale: NS,
       inject: () => ({
         controller,
         form: formFacade,
         pickDirectory: () => ctx.uiWorkspace.pickDirectory(),
       }),
-    }, RecentTasksSettingsRow));
+    }, RecentTasksTab));
 
     // `configForms` is optional: without the official settings surface the row
     // degrades to a read-only status display instead of disappearing.

@@ -153,7 +153,7 @@ test('the script has no side effects outside apply', () => {
   assert.deepEqual([...exports.inject].sort(), ['locale', 'slots', 'uiWorkspace', 'workspaces']);
 });
 
-test('apply registers both slots, the shortcut and the locales, and tolerates absence', () => {
+test('apply registers the plugin tab, the sidebar button, the shortcut and the locales', () => {
   const { exports, tags } = evaluate(bundle);
 
   const registrations = [];
@@ -210,21 +210,55 @@ test('apply registers both slots, the shortcut and the locales, and tolerates ab
   assert.deepEqual(effects.filter((entry) => typeof entry === 'string'), expectLabels());
   assert.deepEqual(
     registrations.map((entry) => [entry.spec.name, entry.spec.id]).sort(),
-    [['settings.general.item', 'recent-tasks'], ['sidebar.footer.action', 'recent-tasks.new']],
+    [['plugins.tab', 'recent-tasks'], ['sidebar.footer.action', 'recent-tasks.new']],
   );
-  // The settings row must be reachable from the general settings page, and the
+  // The settings live in the Plugins page's own tab (spec 2026-11-04), and the
   // button must be a list item rooted at the sidebar bottom.
-  const settings = registrations.find((entry) => entry.spec.name === 'settings.general.item');
+  const tab = registrations.find((entry) => entry.spec.name === 'plugins.tab');
   const button = registrations.find((entry) => entry.spec.name === 'sidebar.footer.action');
-  assert.equal(typeof settings.component, 'function');
+  assert.equal(typeof tab.component, 'function');
+  assert.equal(typeof tab.spec.label, 'function');
+  assert.equal(tab.spec.label(), 'recentTasks:settings.title', 'the tab is named through our own dictionary');
   assert.equal(typeof button.component, 'function');
   assert.equal(typeof button.spec.inject, 'function');
   const face = button.spec.inject();
   assert.equal(typeof face.create, 'function');
   assert.equal(typeof face.controller.refresh, 'function');
-  const settingsFace = settings.spec.inject();
-  assert.equal(typeof settingsFace.pickDirectory, 'function');
-  assert.equal(typeof settingsFace.form.set, 'function', 'the settings row writes through the official form facade');
+  const tabFace = tab.spec.inject();
+  assert.equal(typeof tabFace.pickDirectory, 'function');
+  assert.equal(typeof tabFace.form.set, 'function', 'the tab writes through the official form facade');
+
+  // The tab body is the same panel the General page used to hold: one row per
+  // setting, driven by our own snapshot rather than by the official form.
+  const ready = {
+    phase: 'ready',
+    value: {
+      enabled: true,
+      path: '/Users/me/Documents/DSH 最近任务',
+      title: '最近任务',
+      reusedExisting: false,
+      nestedUnder: null,
+      dirExists: true,
+      code: null,
+    },
+    repairNotice: null,
+    flash: null,
+  };
+  const panel = tab.component({
+    t: (key) => key,
+    controller: {
+      store: { subscribe: () => () => {}, getSnapshot: () => ready },
+      refresh() {},
+      dismissRepairNotice() {},
+    },
+    pickDirectory: async () => null,
+    form: { subscribe: () => () => {}, getSnapshot: () => null, set: async () => true },
+  });
+  assert.equal(panel.props.className, 'dsh-recent-tasks-panel');
+  const rowTitles = panel.children
+    .filter((node) => typeof node?.type === 'function')
+    .map((node) => node.props.title);
+  assert.deepEqual(rowTitles, ['settings.title', 'settings.title.field', 'settings.autoRepair']);
 
   // The locale namespace is registered once, with BOTH dictionaries in one call
   // (`register(ns, { zh, en })` throws on a second call for the same pair).
