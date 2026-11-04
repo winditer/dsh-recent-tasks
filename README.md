@@ -86,7 +86,7 @@ The built browser half (`dist/client.js`) is **committed** on purpose. A `github
 Every release attaches the packed package, so the whole repository is not downloaded and nothing is compiled on the consuming side:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.3.1/dsh-recent-tasks-0.3.1.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.4.0/dsh-recent-tasks-0.4.0.tgz
 ```
 
 The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.
@@ -105,6 +105,8 @@ dsh plugin --profile desktop add .
 ## Settings
 
 All three live rows are ordinary official settings, and they live in exactly one place: the **最近任务** tab of **Settings → Plugins**, beside 已安装 and 发现. The values are this plugin's own live `Config`; the tab writes through `configForms`, the same document the profile keeps.
+
+Upgrading from 0.3.x: those settings used to sit in **Settings → General**. That row is gone in 0.4.0 — the keys, the defaults and the file the values live in are unchanged.
 
 | Key | Default | Meaning |
 |---|---|---|

@@ -86,7 +86,7 @@ Web profile 用 `--profile web`。重启 DSH（完全退出再打开），侧边
 每个 Release 都会附带打包好的安装包，既不用下载整个仓库，使用端也不需要编译：
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.3.1/dsh-recent-tasks-0.3.1.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.4.0/dsh-recent-tasks-0.4.0.tgz
 ```
 
 这个 URL 特意固定到 tag，而不是写成 `releases/latest/download/…`：`latest` 每次请求现算，但文件名是字面量——带版本号的文件名会在下一个 Release 改名的那一刻让那条 URL 失效。
@@ -105,6 +105,8 @@ dsh plugin --profile desktop add .
 ## 设置
 
 三项实时配置就是普通的官方设置，只出现在一处：**设置 → 插件** 顶部的「最近任务」页签（与「已安装」「发现」并列）。它们就是本插件自己的实时 `Config`，页签里通过 `configForms` 写同一份配置文档。
+
+从 0.3.x 升级：这三项原本在 **设置 → 通用** 里。0.4.0 删掉了那一行——配置键、默认值和落盘位置都没变，只是入口换了地方。
 
 | 键 | 默认 | 含义 |
 |---|---|---|
