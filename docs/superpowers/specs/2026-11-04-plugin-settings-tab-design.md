@@ -91,3 +91,16 @@ ctx.slots.inject('plugins.tab', () => ctx.slots.register({
 ## 6. 回滚
 
 单点回滚：把 §4.1 的注册换回 `settings.general.item`（`order: 30`），`package.json` 的 inject 换回 `ui-settings-general`，删掉 `.dsh-recent-tasks-panel` 包裹。host 半与数据结构未动，无需迁移。
+## 7. 更正（0.4.1）：页签注册在了错的那一页
+
+0.4.0 把页签注册进了 **`plugins.tab`**，那是 `dsh-client-ui-plugin-manager` 那页（内部 tab 值 `installed` / `discover`）的插槽；而 Settings 导航里真正显示「内置插件」的，是 `dsh-client-ui-settings-plugins` 注册的 `settings.section`（id `plugins`，`order: 15`）。两者是不同的包、不同的插槽。结果：0.4.0 的页签落进了一个不在导航里的页面，用户既看不到它，「通用设置」那行又已经删掉——设置等于没有入口。
+
+正确的事实（以用户 0.2.1-rc.x 运行实例为准）：
+
+1. 「内置插件」页 = `settings.section` id `plugins`，标题/简介来自 `dsh-client-ui-settings-plugins` 的字典（`title: 内置插件`、`intro: 查看内置部署的插件列表`）。
+2. 它的页签插槽是**该 section 条目的子槽位**：`children: { "settings.plugins.tab": { kind: "list", scope: "root" } }`。
+3. 页签按 `entry.options.order` 升序排（不是注册顺序）：`插件列表` = 10，`插件市场`（`dshmarket`）= 60，`粘贴折叠`（`dsh-paste-spill`）= 60。→ 本插件取 **70**，排在最后。
+4. 页签面板渲染是 `renderSlot("settings.plugins.tab", {}, { only: row.id })`：**不传任何 owner props**，组件只靠自己的 `inject` 面（`controller` / `form` / `pickDirectory`）和 `locale: NS`。
+5. 只有一个页签时该页不画页签条、直接铺开内容（`rows.length === 1` 分支），所以顺序和"只有一个 tab"的形态都要能成立。
+
+对应改动：注册名换 `settings.plugins.tab` + `order: 70`；`dsh.client.inject` 从 `ui-plugin-manager` 换成 `dsh-client-ui-settings-plugins`（声明该 section 与其子槽位的包）。组件、样式、文案、host 半均不变。

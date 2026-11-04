@@ -15,7 +15,7 @@ DSH 按会话 `cwd` 归属的工作区给对话分组。不带工作区开出来
 |---|---|
 | 分组 | 通过 `ctx.workspaceRegistry` 为 `<recentTasksDir>` 注册的真 `workspace` 记录，创建时排在最后；此后插件不再改写持久顺序，你拖到哪里它就待在哪里 |
 | 入口 | 侧边栏底部、设置旁的「＋ 最近任务对话」，以及 `Mod+Alt+N` / `Mod+Shift+N` 快捷键，两者都会在该工作区里开会话 |
-| 设置 | **设置 → 插件** 里的「最近任务」页签——目录、分组名、自动重建——由本插件的官方实时配置驱动 |
+| 设置 | **设置 → 内置插件** 里的「最近任务」页签——目录、分组名、自动重建——由本插件的官方实时配置驱动 |
 | Host API | `POST /dsh-recent-tasks/api/state` 与 `/ensure`，只读且幂等；唯一的写入路径是官方设置表单 |
 
 ## 效果图
@@ -86,7 +86,7 @@ Web profile 用 `--profile web`。重启 DSH（完全退出再打开），侧边
 每个 Release 都会附带打包好的安装包，既不用下载整个仓库，使用端也不需要编译：
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.4.0/dsh-recent-tasks-0.4.0.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.4.1/dsh-recent-tasks-0.4.1.tgz
 ```
 
 这个 URL 特意固定到 tag，而不是写成 `releases/latest/download/…`：`latest` 每次请求现算，但文件名是字面量——带版本号的文件名会在下一个 Release 改名的那一刻让那条 URL 失效。
@@ -104,9 +104,9 @@ dsh plugin --profile desktop add .
 
 ## 设置
 
-三项实时配置就是普通的官方设置，只出现在一处：**设置 → 插件** 顶部的「最近任务」页签（与「已安装」「发现」并列）。它们就是本插件自己的实时 `Config`，页签里通过 `configForms` 写同一份配置文档。
+三项实时配置就是普通的官方设置，只出现在一处：**设置 → 内置插件** 顶部的「最近任务」页签（与「插件列表」「插件市场」并列）。它们就是本插件自己的实时 `Config`，页签里通过 `configForms` 写同一份配置文档。
 
-从 0.3.x 升级：这三项原本在 **设置 → 通用** 里。0.4.0 删掉了那一行——配置键、默认值和落盘位置都没变，只是入口换了地方。
+从 0.3.x 升级：这三项原本在 **设置 → 通用设置** 里。那一行已删除——配置键、默认值和落盘位置都没变，只是入口换了地方。
 
 | 键 | 默认 | 含义 |
 |---|---|---|
@@ -136,7 +136,7 @@ dsh plugin --profile desktop add .
 
 | 现象 | 原因 / 处理 |
 |---|---|
-| 侧边栏没有「最近任务」分组 | 看 **设置 → 插件 → 最近任务** 的错误码：`missing-record`（且自动重建关闭）或 `dir-not-writable`。 |
+| 侧边栏没有「最近任务」分组 | 看 **设置 → 内置插件 → 最近任务** 的错误码：`missing-record`（且自动重建关闭）或 `dir-not-writable`。 |
 | 分组嵌套在别的工作区下面 | `recentTasksDir` 落在某个已注册工作区内部——换一个不在任何工作区里的目录。 |
 | 入口提示 `unavailable` | Host 半边没挂上（行被禁用，或行在 `workspaceRegistry` 之前挂载）。安装后重载一次应用。 |
 | 设置行显示只读提示 | 当前组合里没有 `configForms`（即没有官方设置界面）；直接改 profile `cordis.patch.yml` 里的 `recent-tasks` 行。 |

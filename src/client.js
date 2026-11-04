@@ -8,9 +8,9 @@
 //      a blank session in the managed workspace — the only entry a plugin can add
 //      without rewriting the sidebar.
 //   2. shortcut `recentTasks.new` (via `ctx.shortcuts.register`, optional service).
-//   3. `plugins.tab` (list, root): the 「最近任务」 tab of Settings -> Plugins,
-//      holding the storage folder / group name / auto-repair settings. The
-//      values are the OFFICIAL live config (`configForms.get('recent-tasks')`)
+//   3. `settings.plugins.tab` (list, root): the 「最近任务」 tab of Settings ->
+//      内置插件, holding the storage folder / group name / auto-repair settings.
+//      The values are the OFFICIAL live config (`configForms.get('recent-tasks')`)
 //      and persist in the profile's patch. Since spec 2026-11-04 this is the
 //      only place they are edited — the plugin adds no General-settings row.
 //   4. no slot at all: it keeps the managed group's STORED title in step with the
@@ -25,8 +25,9 @@
 //     mandatory for slots declared by other packages; `spec.inject` returns the
 //     props the component receives (`hooks: {...}` entries become `use<Name>`),
 //     and `locale: NS` gives the component a stable `t`.
-//   * `sidebar.footer.action` renders `{ wide }`; `plugins.tab` renders inside
-//     the plugin page's tab panel and receives `{ install, openPackage }`.
+//   * `sidebar.footer.action` renders `{ wide }`; a `settings.plugins.tab` entry
+//     renders inside the 内置插件 section's tab panel and receives NO props —
+//     everything it needs comes from its own `inject`.
 //   * `ctx.shortcuts.register` THROWS on a duplicate id, a reserved default, or a
 //     default that overlaps another command on ANY runtime/platform — so the
 //     registration is guarded and degrades to the button.
@@ -272,8 +273,8 @@ function SettingsRow({ title, children, control }) {
 }
 
 /**
- * `plugins.tab` entry — the 「最近任务」 tab of Settings -> Plugins: storage
- * folder, group name and auto-repair.
+ * `settings.plugins.tab` entry — the 「最近任务」 tab of Settings -> 内置插件:
+ * storage folder, group name and auto-repair.
  *
  * The values are the OFFICIAL live config (design §8.6 route A): the host half
  * declares them `.volatile()`, `dsh-settings` serves them under this plugin's row
@@ -617,14 +618,14 @@ const plugin = {
       inject: () => ({ controller, create }),
     }, NewRecentTaskButton));
 
-    // The plugin page's own tab (spec 2026-11-04): `plugins.tab` is declared by
-    // the plugin manager, so registering into it goes through `slots.inject`.
-    // The page renders its tabs in REGISTRATION order (it does not re-sort by
-    // `order`), and a bundle loads after the composition's own pages, so this
-    // tab lands after 已安装 / 发现 without asking for a position.
-    ctx.slots.inject('plugins.tab', () => ctx.slots.register({
-      name: 'plugins.tab',
+    // The 内置插件 page's own tab (spec 2026-11-04): the slot is a CHILD of
+    // that section's `settings.section` entry, so it only exists once the
+    // section is mounted — hence `slots.inject`. The section sorts its tabs by
+    // `order` (inventory 10, 插件市场 60, 粘贴折叠 60), so 70 puts ours last.
+    ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
+      name: 'settings.plugins.tab',
       id: 'recent-tasks',
+      order: 70,
       label: () => t('settings.title'),
       locale: NS,
       inject: () => ({

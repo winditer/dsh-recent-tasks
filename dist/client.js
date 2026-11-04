@@ -1147,9 +1147,10 @@ var plugin = {
       locale: NS,
       inject: () => ({ controller, create })
     }, NewRecentTaskButton));
-    ctx.slots.inject("plugins.tab", () => ctx.slots.register({
-      name: "plugins.tab",
+    ctx.slots.inject("settings.plugins.tab", () => ctx.slots.register({
+      name: "settings.plugins.tab",
       id: "recent-tasks",
+      order: 70,
       label: () => t("settings.title"),
       locale: NS,
       inject: () => ({

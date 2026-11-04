@@ -15,7 +15,7 @@ DSH groups every chat under the workspace its session `cwd` resolves to. A chat 
 |---|---|
 | Group | A genuine `workspace` record for `<recentTasksDir>`, registered through `ctx.workspaceRegistry` and created as the last group; the plugin never rewrites the durable order afterwards, so where you drag it is where it stays |
 | Entry | `＋ 最近任务对话` beside Settings at the sidebar foot, plus the `Mod+Alt+N` / `Mod+Shift+N` shortcut — both start a session in that workspace |
-| Settings | The `最近任务` tab of **Settings → Plugins** — folder, group name, auto-repair — backed by this plugin's official live config |
+| Settings | The `最近任务` tab of **Settings → 内置插件** — folder, group name, auto-repair — backed by this plugin's official live config |
 | Host API | `POST /dsh-recent-tasks/api/state` and `/ensure`, read-only and idempotent; the only write path is the official settings form |
 
 ## Screenshots
@@ -86,7 +86,7 @@ The built browser half (`dist/client.js`) is **committed** on purpose. A `github
 Every release attaches the packed package, so the whole repository is not downloaded and nothing is compiled on the consuming side:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.4.0/dsh-recent-tasks-0.4.0.tgz
+dsh plugin --profile desktop add https://github.com/winditer/dsh-recent-tasks/releases/download/v0.4.1/dsh-recent-tasks-0.4.1.tgz
 ```
 
 The URL is pinned to the tag rather than written as `releases/latest/download/…` on purpose: `latest` resolves per request but the filename is literal, so a versioned asset name breaks that URL the moment the next release renames it.
@@ -104,9 +104,9 @@ dsh plugin --profile desktop add .
 
 ## Settings
 
-All three live rows are ordinary official settings, and they live in exactly one place: the **最近任务** tab of **Settings → Plugins**, beside 已安装 and 发现. The values are this plugin's own live `Config`; the tab writes through `configForms`, the same document the profile keeps.
+All three live rows are ordinary official settings, and they live in exactly one place: the **最近任务** tab of **Settings → 内置插件**, beside 插件列表 and 插件市场. The values are this plugin's own live `Config`; the tab writes through `configForms`, the same document the profile keeps.
 
-Upgrading from 0.3.x: those settings used to sit in **Settings → General**. That row is gone in 0.4.0 — the keys, the defaults and the file the values live in are unchanged.
+Upgrading from 0.3.x: those settings used to sit in **Settings → 通用设置**. That row is gone — the keys, the defaults and the file the values live in are unchanged.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -136,7 +136,7 @@ Precedence: the profile patch layer wins over this package's bundled defaults, s
 
 | Symptom | Cause / fix |
 |---|---|
-| No 最近任务 group appears | Check **Settings → Plugins → 最近任务** for a coded reason; `missing-record` + auto-repair off, or `dir-not-writable`. |
+| No 最近任务 group appears | Check **Settings → 内置插件 → 最近任务** for a coded reason; `missing-record` + auto-repair off, or `dir-not-writable`. |
 | The group is nested under another workspace | `recentTasksDir` is inside a registered workspace — pick a folder outside every workspace. |
 | The entry point says `unavailable` | The host half is not mounted (row disabled, or the row mounted before `workspaceRegistry`). Reload the app once after installing. |
 | Settings row shows the read-only hint | No `configForms` in this composition (no official settings surface); edit the `recent-tasks` row in the profile's `cordis.patch.yml`. |

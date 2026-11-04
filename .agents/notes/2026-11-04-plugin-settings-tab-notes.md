@@ -24,6 +24,15 @@
 - `test/bundle.test.js`：槽位期望改成 `plugins.tab`，并加一条"渲染页签组件得到三行设置"的断言。
 - README / README.zh：能力表、设置章节、故障排查里"设置 → 通用"的说法全部改成"设置 → 插件 → 最近任务"。
 
+## 更正（0.4.1）：两个"插件页"别搞混
+
+0.4.0 注册的是 `plugins.tab`——那是 `dsh-client-ui-plugin-manager` 那页的插槽，而这个 profile 的导航里根本没有那一页。用户看到的「**内置插件**」是 `dsh-client-ui-settings-plugins` 注册的 `settings.section`（id `plugins`，order 15），它的页签插槽是**自己的子槽位** `settings.plugins.tab`。
+
+- 排序按 `order` 升序（跟 `plugins.tab` 相反，那个是注册顺序）：`插件列表`=10、`插件市场`（dshmarket）=60、`粘贴折叠`（dsh-paste-spill）=60 ⇒ 本插件用 **70**。
+- 页签组件**收不到任何 props**（`renderSlot(..., {}, { only: id })`），全部依赖自己的 `inject`。
+- 这类"子槽位"只能等 section 挂载后才存在，必须 `ctx.slots.inject`；第三方 `dsh-paste-spill` 也是这么写的（它同包内还有 `pageRegistered` 标记防重复）。
+- 教训：先在用户的**实际导航**里认出页面属于哪个包（`settings.section` 的 label 来自包字典），再去读那个包的 `children` 声明；不要凭"插件页"三个字猜插槽名。
+
 ## 留个心眼
 
 - 新页签是"整页"粒度：即使某项设置在别的部署里只读，页签也会显示（面板内部再显示只读提示）。

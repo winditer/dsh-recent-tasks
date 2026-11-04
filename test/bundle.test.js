@@ -210,11 +210,12 @@ test('apply registers the plugin tab, the sidebar button, the shortcut and the l
   assert.deepEqual(effects.filter((entry) => typeof entry === 'string'), expectLabels());
   assert.deepEqual(
     registrations.map((entry) => [entry.spec.name, entry.spec.id]).sort(),
-    [['plugins.tab', 'recent-tasks'], ['sidebar.footer.action', 'recent-tasks.new']],
+    [['settings.plugins.tab', 'recent-tasks'], ['sidebar.footer.action', 'recent-tasks.new']],
   );
-  // The settings live in the Plugins page's own tab (spec 2026-11-04), and the
+  // The settings live in the 内置插件 page's own tab (spec 2026-11-04), and the
   // button must be a list item rooted at the sidebar bottom.
-  const tab = registrations.find((entry) => entry.spec.name === 'plugins.tab');
+  const tab = registrations.find((entry) => entry.spec.name === 'settings.plugins.tab');
+  assert.equal(tab.spec.order, 70, 'the section sorts tabs by order; 70 keeps 最近任务 last');
   const button = registrations.find((entry) => entry.spec.name === 'sidebar.footer.action');
   assert.equal(typeof tab.component, 'function');
   assert.equal(typeof tab.spec.label, 'function');
